@@ -67,9 +67,9 @@ def _load_local_model():
                 "'.venv\\Scripts\\python.exe -m pip install -r requirements-local-ai.txt'."
             ) from exc
         context = _setting_int("JARVIS_LOCAL_CONTEXT", 4096, 1024, 32768)
-        threads = _setting_int(
-            "JARVIS_LOCAL_THREADS", max(1, (os.cpu_count() or 2) - 1), 1, 64
-        )
+        threads = _setting_int("JARVIS_LOCAL_THREADS", 0, 0, 64)
+        if threads == 0:
+            threads = max(1, (os.cpu_count() or 2) - 1)
         gpu_layers = _setting_int("JARVIS_LOCAL_GPU_LAYERS", 0, 0, 999)
         _model = Llama(
             model_path=str(path),
