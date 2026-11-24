@@ -64,7 +64,8 @@ def chat(messages):
 def respond(text, approve=None, progress=None):
     add("user", text)
     memory = profile_context()
-    intent = classify(text)\n    system_message = SYSTEM + memory + "\\n\\nLocal lightweight intent model: " + intent["hint"]
+    intent = classify(text)
+    system_message = SYSTEM + memory + "\n\nLocal lightweight intent model: " + intent["hint"]
     messages = [{"role": "system", "content": system_message}] + history(18)
     for _ in range(MAX_TOOL_ROUNDS):
         message = chat(messages)
@@ -126,9 +127,19 @@ class Controller:
         self.gesture_monitor = None
         self.gestures_enabled = False
         self._shutting_down = False
+        from awareness import AwarenessMonitor
+        self.awareness = AwarenessMonitor(on_event=self._awareness_event)
+        self.awareness.start()
         self.hud.root.protocol("WM_DELETE_WINDOW", self.shutdown)
 
-    def _awareness_event(self, event):\n        message = event.get("message", "")\n        if event.get("type") == "alert":\n            self.hud.dispatch(self.hud.add, "SYSTEM ALERT", message)\n        elif event.get("type") == "status":\n            self.hud.dispatch(self.hud.set_status, message)\n\n    def _approve(self, description):
+    def _awareness_event(self, event):
+        message = event.get("message", "")
+        if event.get("type") == "alert":
+            self.hud.dispatch(self.hud.add, "SYSTEM ALERT", message)
+        elif event.get("type") == "status":
+            self.hud.dispatch(self.hud.set_status, message)
+
+    def _approve(self, description):
         return self.hud.confirm_action(description)
 
     def _progress(self, status):
@@ -407,6 +418,11 @@ class Controller:
                             LOG.error("hand-gesture camera did not stop before JARVIS closed")
                     except Exception:
                         LOG.exception("hand-gesture camera shutdown failed")
+                if self.awareness:
+                    try:
+                        self.awareness.stop(wait=True, timeout=4)
+                    except Exception:
+                        LOG.exception("PC awareness shutdown failed")
                 if self.voice:
                     try:
                         self.voice.stop()
