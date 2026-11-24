@@ -7,7 +7,7 @@ from pathlib import Path
 
 import psutil
 
-from memory import forget, recall, remember
+from memory import forget, recall, remember\nfrom intent_engine import learn
 
 LOG = logging.getLogger("jarvis.actions")
 APP_ALLOWLIST = {
@@ -547,6 +547,12 @@ def execute(name, args, confirm=None, progress=None):
         from vision import analyze_screen
 
         return analyze_screen(str(args.get("question", ""))[:1000])
+    if name == "teach_jarvis":
+        phrase = str(args.get("phrase", "")).strip()
+        label = str(args.get("label", "")).strip().lower()
+        if not _confirm_action(confirm, f"Add this training example to JARVIS's local intent model?\\n\\nCategory: {label}\\nPhrase: {phrase}"):
+            return {"ok": False, "error": "User did not approve model training."}
+        return learn(phrase, label)
     if name == "report_progress":
         status = str(args.get("status", "")).strip()[:120]
         if progress and status:
