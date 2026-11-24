@@ -7,18 +7,13 @@ import threading
 from dotenv import load_dotenv
 
 from memory import add, clear, history, init_db, profile_context
-from ollama_client import chat_completion
+from ai_backend import chat_completion
 from tools import TOOL_DEFINITIONS, execute
 from intent_engine import classify
 
 ROOT = os.path.dirname(os.path.dirname(__file__))
 load_dotenv(os.path.join(ROOT, ".env"))
-MODEL = (
-    os.getenv("OLLAMA_MODEL")
-    or "hf.co/mradermacher/Qwen2.5-7B-Instruct-abliterated-GGUF:Q4_K_M"
-).strip()
-if not MODEL:
-    raise ValueError("OLLAMA_MODEL must be a non-empty local model name.")
+MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:7b").strip()
 APP = os.getenv("APP_NAME", "JARVIS")
 try:
     MAX_TOOL_ROUNDS = int(os.getenv("JARVIS_MAX_TOOL_ROUNDS", "8"))
@@ -494,7 +489,7 @@ def console_confirm(description):
 
 
 def cli():
-    print(f"\n{APP} online | local Ollama model: {MODEL} | /help, /clear, /exit\n")
+    print(f"\n{APP} online | AI provider: {os.getenv('JARVIS_AI_PROVIDER', 'auto')} | /help, /clear, /exit\n")
     while True:
         try:
             text = input("You > ").strip()
