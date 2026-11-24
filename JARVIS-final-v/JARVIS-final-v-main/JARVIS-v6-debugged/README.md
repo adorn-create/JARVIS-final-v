@@ -1,14 +1,14 @@
 # JARVIS-v6 — Local Windows Desktop Assistant
 
-JARVIS uses Ollama for local chat and screen analysis, SQLite conversation history, optional Whisper voice input, and approval-gated Windows UI controls. Prompts and screenshots are sent only to the local Ollama server configured on loopback.
+JARVIS can run conversational AI directly through an embedded GGUF model using llama-cpp-python, with Ollama retained as an optional fallback and vision provider. It also includes SQLite conversation history, optional Whisper voice input, and approval-gated Windows UI controls. Local GGUF inference does not require an Ollama process.
 
 ## Install
-1. Install the latest Ollama for Windows from [ollama.com/download](https://ollama.com/download). Use Ollama 0.7.0 or newer for the vision model.
-2. Double-click `SETUP.bat`.
-3. Setup offers separate opt-in pulls for the chat and vision models. Both require several GB of disk space; the vision model is about 6 GB.
-4. Choose `Y` to install optional voice/wake-word and desktop-control packages when prompted.
-5. Choose `Y` at the optional face-detection prompt to install OpenCV.
-6. Setup launches JARVIS. Later, use `LAUNCH.bat`.
+1. Install Python 3.11 or 3.12 and double-click `SETUP.bat`.
+2. Choose `Y` when asked to install the optional local AI runtime (llama-cpp-python).
+3. Download a compatible GGUF model into `models/` using the instructions below. Model weights are not bundled in Git.
+4. Set `JARVIS_AI_PROVIDER=auto` in `.env` (the default): JARVIS prefers the local GGUF model and uses Ollama only if local inference is unavailable.
+5. Ollama is optional for chat; install it only if you want the fallback or current screen-vision feature.
+6. Choose `Y` to install optional voice/wake-word and desktop-control packages when prompted. Setup launches JARVIS; later use `LAUNCH.bat`.
 
 If you skip the model pulls, run these commands manually:
 
@@ -20,11 +20,36 @@ ollama pull qwen2.5vl:7b
 The chat model is the Q4_K_M GGUF quantization of `huihui-ai/Qwen2.5-7B-Instruct-abliterated`; it is about 4.8 GB. `ollama run` opens an interactive prompt after downloading it; enter `/bye` to return to PowerShell. Setup's opt-in pull avoids opening that prompt.
 The chat model runs through Ollama's local OpenAI-compatible API. The vision model is a separate local model because the chat model does not accept images.
 
+## JARVIS-owned local conversational runtime
+
+The current custom Naive Bayes intent classifier is not a language model. This upgrade adds a separate local conversational inference backend: llama.cpp loads a compact Qwen2.5-1.5B-Instruct GGUF model directly in the JARVIS Python process. The model is a pretrained base that JARVIS can specialize with its system prompt, approved memories, tools, and future curated fine-tuning; this repository does not claim to train a foundation model from scratch.
+
+Install the optional runtime:
+
+```powershell
+.venv\\Scripts\\python.exe -m pip install -r requirements-local-ai.txt
+```
+
+Download the Q4_K_M model file from [Qwen2.5-1.5B-Instruct-GGUF](https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF) and place it at `models/jarvis-qwen2.5-1.5b-instruct-q4_k_m.gguf`. If the repository's exact filename changes, update `JARVIS_LOCAL_MODEL_PATH` to match the downloaded file. The GGUF weights are a separate download (roughly 1 GB); they are not committed to Git.
+
+Provider behavior:
+- `auto`: prefer local GGUF when the file exists; otherwise use Ollama.
+- `local`: try the local GGUF model; Ollama fallback is controlled by `JARVIS_OLLAMA_FALLBACK`.
+- `ollama`: always use Ollama for chat.
+
+The local backend reads the model's embedded chat template, supports the existing OpenAI-style tool-call response contract, keeps one model instance loaded, and exposes CPU threads, context size, and GPU layers as settings. CPU is the safe default. Set GPU layers only when your llama.cpp build and GPU support them. Screen vision still uses the existing Ollama vision route in this version; text chat, reasoning, memory, and tool orchestration can run without Ollama.
+
 ## Settings
 
 Relevant `.env` settings:
 
 ```ini
+JARVIS_AI_PROVIDER=auto
+JARVIS_LOCAL_MODEL_PATH=models/jarvis-qwen2.5-1.5b-instruct-q4_k_m.gguf
+JARVIS_LOCAL_CONTEXT=4096
+JARVIS_LOCAL_THREADS=0
+JARVIS_LOCAL_GPU_LAYERS=0
+JARVIS_OLLAMA_FALLBACK=1
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=hf.co/mradermacher/Qwen2.5-7B-Instruct-abliterated-GGUF:Q4_K_M
 OLLAMA_VISION_MODEL=qwen2.5vl:7b
@@ -49,7 +74,8 @@ The custom intent model is the first JARVIS-owned AI component. Complex open-end
 
 ## Features
 - JARVIS-owned lightweight intent classifier with approval-gated local feedback learning
-- Local chat with the configured Ollama model and bounded tool calling
+- Local GGUF conversational AI with resource-aware llama.cpp inference and optional Ollama fallback
+- Bounded tool calling, planning, and progress updates
 - Always-on, low-overhead local PC awareness for CPU, RAM, and newly started processes
 - Multi-step planning, progress updates, and explicit error reporting
 - SQLite conversation history and user-approved saved preferences/tasks
@@ -64,7 +90,7 @@ The custom intent model is the first JARVIS-owned AI component. Complex open-end
 - Optional local face-count detection, enabled only by its HUD toggle and confirmation
 
 ## Privacy and safety
-- Chat prompts, saved memory, window information, and screen images are processed by the local Ollama server. Model files are downloaded from Ollama when you opt in to setup pulls.
+- With the local provider, chat prompts and saved memory are processed by the local GGUF model in the JARVIS process. If fallback is enabled and local inference fails, chat is sent to the local Ollama server. Screen images still use local Ollama vision in this version.
 - Voice audio is transcribed locally; the transcript is sent to the local Ollama server. Wake detection runs locally and is off until you explicitly enable it.
 - Face detection runs locally and is off until you explicitly enable it. While enabled, the camera stays active and the HUD shows its status and detected face count. JARVIS detects counts only: it does not identify people, save frames or biometric data, or provide access control. Turn it off with the HUD toggle or close JARVIS.
 - Web search sends the search query to DuckDuckGo; opening websites connects to the selected site.
@@ -74,7 +100,8 @@ The custom intent model is the first JARVIS-owned AI component. Complex open-end
 - Keep `.env` private. Existing OpenRouter settings in an older `.env` are ignored by this build.
 
 ## Troubleshooting
-- If JARVIS cannot connect, start the Ollama Windows app or run `ollama serve`, then check `ollama list`.
+- If local chat is unavailable, confirm the GGUF file path in `.env` and install `requirements-local-ai.txt`. If using fallback, start Ollama with `ollama serve` and check `ollama list`.
+- On Windows, llama-cpp-python may require a compatible prebuilt wheel or Microsoft C++ Build Tools. If its installation fails, JARVIS can continue using Ollama.
 - If a model is missing, use the commands in Install. The Hugging Face model name must match `OLLAMA_MODEL`.
 - If a Hugging Face pull fails with a `realm host` mismatch, update Ollama to the latest stable Windows release and retry. This is an Ollama registry redirect issue, not a JARVIS launcher issue ([Ollama issue #15661](https://github.com/ollama/ollama/issues/15661)).
 - The first Whisper use downloads the selected speech model and may take a while.
