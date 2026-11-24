@@ -36,6 +36,17 @@ if errorlevel 1 goto fail
 if not exist .env copy .env.example .env >nul
 call :ollama_setup
 echo.
+set /p LOCALAI=Install optional local GGUF conversational AI runtime? (Y/N) [N]:
+if /i "%LOCALAI%"=="Y" (
+  .venv\Scripts\python.exe -m pip install -r requirements-local-ai.txt
+  if errorlevel 1 echo Local AI runtime install failed. Ollama fallback remains available.
+  if not errorlevel 1 (
+    if not exist models mkdir models
+    echo Download a compatible Qwen2.5-1.5B-Instruct Q4_K_M GGUF into the models folder.
+    echo See README.md for the model source and exact .env path setting.
+  )
+)
+echo.
 set /p VOICE=Install optional Whisper, speech, and wake-word packages? (Y/N) [N]:
 if /i "%VOICE%"=="Y" (
   .venv\Scripts\python.exe -m pip install -r requirements-voice.txt
