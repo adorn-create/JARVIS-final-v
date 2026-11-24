@@ -484,6 +484,22 @@ TOOL_DEFINITIONS = [
     {
         "type": "function",
         "function": {
+            "name": "teach_jarvis",
+            "description": "Teach the local intent model a phrase and category when the user explicitly asks. Requires approval.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "phrase": {"type": "string"},
+                    "label": {"type": "string", "enum": ["system", "automation", "vision", "voice", "security", "memory", "general"]}
+                },
+                "required": ["phrase", "label"],
+                "additionalProperties": False
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "report_progress",
             "description": "Show the user a short current plan step or progress update.",
             "parameters": {
