@@ -33,13 +33,24 @@ JARVIS_STT_MODEL=small.en
 JARVIS_STT_DEVICE=cpu
 JARVIS_STT_COMPUTE=int8
 JARVIS_MAX_TOOL_ROUNDS=8
-JARVIS_WAKE_THRESHOLD=0.5\nJARVIS_AWARENESS_INTERVAL=8
+JARVIS_WAKE_THRESHOLD=0.5
+JARVIS_AWARENESS_INTERVAL=8
 ```
 
 `OLLAMA_BASE_URL` is restricted to localhost so prompts and screenshots are not sent to a remote endpoint. Increase `OLLAMA_REQUEST_TIMEOUT` between 30 and 1800 seconds if model inference is slow.
 
-## Custom lightweight intelligence and PC awareness\n\nJARVIS now includes a small, locally trained Naive Bayes intent model (`src/intent_engine.py`). It classifies common request categories using a bundled seed set and approved examples stored in the existing local SQLite database. It provides a weak routing hint to the assistant; it is not a general-purpose LLM and does not execute actions. Teach it with an explicit request such as “learn that ‘check my laptop resources’ is a system request”; JARVIS asks for approval before saving the example.\n\nA lightweight background monitor (`src/awareness.py`) samples CPU, memory, and process starts locally. It reports high resource usage and newly observed processes in the HUD. Process names are observations, not malware verdicts. It does not capture screenshots, keystrokes, microphone audio, or camera frames, and it does not kill processes or remediate threats. Configure `JARVIS_AWARENESS_INTERVAL` (seconds; minimum 3, default 8) in `.env`.\n\nThe custom intent model is the first JARVIS-owned AI component. Complex open-ended reasoning and vision still use the existing optional local Ollama models.\n\n## Features
-- JARVIS-owned lightweight intent classifier with approval-gated local feedback learning\n- Local chat with the configured Ollama model and bounded tool calling\n- Always-on, low-overhead local PC awareness for CPU, RAM, and newly started processes
+## Custom lightweight intelligence and PC awareness
+
+JARVIS now includes a small, locally trained Naive Bayes intent model (`src/intent_engine.py`). It classifies common request categories using a bundled seed set and approved examples stored in the existing local SQLite database. It provides a weak routing hint to the assistant; it is not a general-purpose LLM and does not execute actions. Teach it with an explicit request such as “learn that ‘check my laptop resources’ is a system request”; JARVIS asks for approval before saving the example.
+
+A lightweight background monitor (`src/awareness.py`) samples CPU, memory, and process starts locally. It reports high resource usage and newly observed processes in the HUD. Process names are observations, not malware verdicts. It does not capture screenshots, keystrokes, microphone audio, or camera frames, and it does not kill processes or remediate threats. Configure `JARVIS_AWARENESS_INTERVAL` (seconds; minimum 3, default 8) in `.env`.
+
+The custom intent model is the first JARVIS-owned AI component. Complex open-ended reasoning and vision still use the existing optional local Ollama models.
+
+## Features
+- JARVIS-owned lightweight intent classifier with approval-gated local feedback learning
+- Local chat with the configured Ollama model and bounded tool calling
+- Always-on, low-overhead local PC awareness for CPU, RAM, and newly started processes
 - Multi-step planning, progress updates, and explicit error reporting
 - SQLite conversation history and user-approved saved preferences/tasks
 - Search for older conversation context and saved memory; ask JARVIS to forget a saved item
