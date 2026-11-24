@@ -1,3 +1,4 @@
+import math
 import os
 import threading
 import tkinter as tk
@@ -6,7 +7,22 @@ from tkinter import messagebox
 import psutil
 
 
+BG = "#050b14"
+PANEL = "#091827"
+PANEL_ALT = "#0c2032"
+LINE = "#173c53"
+CYAN = "#63e6ff"
+CYAN_DIM = "#2c819f"
+TEXT = "#d8f5ff"
+MUTED = "#7ea8ba"
+GREEN = "#55e6b2"
+AMBER = "#ffd166"
+RED = "#ff7585"
+
+
 class HUD:
+    """Movie-inspired JARVIS command interface, built with lightweight Tkinter."""
+
     def __init__(
         self,
         on_send,
@@ -24,165 +40,253 @@ class HUD:
         self._wake_enabled = False
         self._face_enabled = False
         self._gestures_enabled = False
+        self._monitor_enabled = True
+
         self.root = tk.Tk()
-        self.root.title("J.A.R.V.I.S. | Desktop AI")
-        self.root.geometry("960x680")
-        self.root.minsize(780, 560)
-        self.root.configure(bg="#07111d")
+        self.root.title("J.A.R.V.I.S. | Tactical Interface")
+        self.root.geometry("1280x820")
+        self.root.minsize(980, 680)
+        self.root.configure(bg=BG)
 
-        header = tk.Frame(self.root, bg="#07111d")
-        header.pack(fill="x", padx=16, pady=(14, 4))
-        self.reactor = tk.Canvas(
-            header,
-            width=64,
-            height=64,
-            bg="#07111d",
-            highlightthickness=0,
-        )
-        self.reactor.pack(side="left", padx=(0, 12))
-        self.reactor.create_oval(
-            7, 7, 57, 57, outline="#1c526e", width=2, tags="ring"
-        )
-        self.reactor.create_arc(
-            7,
-            7,
-            57,
-            57,
-            start=0,
-            extent=100,
-            style="arc",
-            outline="#65d9ff",
-            width=4,
-            tags="pulse",
-        )
-        title_box = tk.Frame(header, bg="#07111d")
-        title_box.pack(side="left", fill="x", expand=True)
-        tk.Label(
-            title_box,
-            text="J.A.R.V.I.S.",
-            fg="#65d9ff",
-            bg="#07111d",
-            font=("Segoe UI", 24, "bold"),
-        ).pack(anchor="w")
-        self.status = tk.Label(
-            title_box,
-            text="ONLINE • READY",
-            fg="#55e6b2",
-            bg="#07111d",
-            font=("Segoe UI", 10),
-        )
-        self.status.pack(anchor="w")
-        self.metrics = tk.Label(
-            title_box,
-            text="CPU --%   RAM --%   DISK --%",
-            fg="#93b9cc",
-            bg="#07111d",
-            font=("Segoe UI", 9),
-        )
-        self.metrics.pack(anchor="w", pady=(3, 0))
-        self.face_status = tk.Label(
-            title_box,
-            text="CAMERA OFF • FACE DETECTION ONLY",
-            fg="#93b9cc",
-            bg="#07111d",
-            font=("Segoe UI", 9),
-        )
-        self.face_status.pack(anchor="w", pady=(2, 0))
-        self.gesture_status = tk.Label(title_box, text="HAND GESTURES OFF", fg="#93b9cc", bg="#07111d", font=("Segoe UI", 9))
-        self.gesture_status.pack(anchor="w", pady=(2, 0))
-
-        self.log = tk.Text(
-            self.root,
-            bg="#0b1b2b",
-            fg="#d6efff",
-            insertbackground="white",
-            wrap="word",
-            font=("Consolas", 11),
-            bd=0,
-            padx=12,
-            pady=12,
-        )
-        self.log.pack(fill="both", expand=True, padx=14, pady=10)
-        self.log.configure(state="disabled")
-
-        controls = tk.Frame(self.root, bg="#07111d")
-        controls.pack(fill="x", padx=14, pady=(0, 5))
-        self.entry = tk.Entry(
-            controls,
-            bg="#102437",
-            fg="white",
-            insertbackground="white",
-            font=("Segoe UI", 11),
-            bd=0,
-        )
-        self.entry.pack(side="left", fill="x", expand=True, ipady=9)
-        self.entry.bind("<Return>", lambda event: self.send())
-        self._button(controls, "SEND", self.send)
-        self._button(controls, "RECORD", on_voice)
-        self._button(controls, "SCREEN", on_vision)
-        self._button(controls, "STOP SPEAKING", on_stop_speaking)
-        self._wake_button = self._button(
-            controls,
-            "WAKE WORD: OFF",
-            lambda: on_toggle_wake(not self._wake_enabled),
-        )
-        self._face_button = self._button(
-            controls,
-            "FACE DETECTION: OFF",
-            lambda: on_toggle_face(not self._face_enabled),
-        )
-        self._gesture_button = self._button(
-            controls,
-            "GESTURES: OFF",
-            lambda: on_toggle_gestures(not self._gestures_enabled),
-        )
-
-        mic_row = tk.Frame(self.root, bg="#07111d")
-        mic_row.pack(fill="x", padx=16, pady=(0, 12))
-        tk.Label(
-            mic_row,
-            text="MIC LEVEL",
-            fg="#93b9cc",
-            bg="#07111d",
-            font=("Segoe UI", 8),
-        ).pack(side="left", padx=(0, 8))
-        self.mic_meter = tk.Canvas(
-            mic_row,
-            width=180,
-            height=10,
-            bg="#102437",
-            highlightthickness=0,
-        )
-        self.mic_meter.pack(side="left")
-        self._mic_bar = self.mic_meter.create_rectangle(
-            0, 0, 0, 10, fill="#55e6b2", width=0
-        )
-        self.add(
-            "JARVIS",
-            "Interface ready. Type, record speech, or request screen analysis.",
-        )
+        self._build_header()
+        self._build_dashboard()
+        self._build_activity()
+        self._build_controls()
+        self.add("JARVIS", "Interface online. All existing systems are standing by.")
         self._animate()
         self._refresh_metrics()
 
-    def _button(self, parent, label, command):
-        button = tk.Button(
-            parent,
-            text=label,
-            command=command,
-            bg="#12374d",
-            fg="#8ee8ff",
-            activebackground="#1c526e",
-            activeforeground="white",
-            bd=0,
-            padx=9,
-            pady=8,
+    def _panel(self, parent, title=None):
+        outer = tk.Frame(parent, bg=LINE, bd=0, highlightthickness=0)
+        inner = tk.Frame(outer, bg=PANEL, padx=12, pady=10)
+        inner.pack(fill="both", expand=True, padx=1, pady=1)
+        if title:
+            tk.Label(
+                inner, text=title.upper(), bg=PANEL, fg=CYAN_DIM,
+                font=("Segoe UI", 8, "bold"), anchor="w"
+            ).pack(fill="x", pady=(0, 8))
+        return outer, inner
+
+    def _build_header(self):
+        header = tk.Frame(self.root, bg=BG)
+        header.pack(fill="x", padx=22, pady=(16, 10))
+        self.reactor = tk.Canvas(
+            header, width=58, height=58, bg=BG, highlightthickness=0
         )
-        button.pack(side="left", padx=(8, 0))
+        self.reactor.pack(side="left", padx=(0, 12))
+        self.reactor.create_oval(5, 5, 53, 53, outline=LINE, width=2, tags="ring")
+        self.reactor.create_oval(12, 12, 46, 46, outline=CYAN_DIM, width=1)
+        self.reactor.create_arc(
+            5, 5, 53, 53, start=0, extent=95, style="arc",
+            outline=CYAN, width=3, tags="pulse"
+        )
+        title_box = tk.Frame(header, bg=BG)
+        title_box.pack(side="left", fill="x", expand=True)
+        tk.Label(
+            title_box, text="J.A.R.V.I.S.", bg=BG, fg=CYAN,
+            font=("Segoe UI", 23, "bold")
+        ).pack(anchor="w")
+        tk.Label(
+            title_box, text="PERSONAL ARTIFICIAL INTELLIGENCE  /  TACTICAL INTERFACE",
+            bg=BG, fg=MUTED, font=("Consolas", 8)
+        ).pack(anchor="w")
+        right = tk.Frame(header, bg=BG)
+        right.pack(side="right", anchor="e")
+        self.status = tk.Label(
+            right, text="● SYSTEM ONLINE", bg=BG, fg=GREEN,
+            font=("Consolas", 10, "bold")
+        )
+        self.status.pack(anchor="e")
+        self.metrics = tk.Label(
+            right, text="CPU --%   RAM --%   DISK --%", bg=BG, fg=MUTED,
+            font=("Consolas", 9)
+        )
+        self.metrics.pack(anchor="e", pady=(5, 0))
+
+    def _build_dashboard(self):
+        dashboard = tk.Frame(self.root, bg=BG)
+        dashboard.pack(fill="both", expand=True, padx=22, pady=(0, 10))
+        dashboard.grid_columnconfigure(0, weight=1, uniform="dash")
+        dashboard.grid_columnconfigure(1, weight=2, uniform="dash")
+        dashboard.grid_columnconfigure(2, weight=1, uniform="dash")
+        dashboard.grid_rowconfigure(0, weight=1)
+
+        left_outer, left = self._panel(dashboard, "Subsystems")
+        left_outer.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
+        self._subsystem_labels = {}
+        for key, label, state in (
+            ("core", "CORE INTELLIGENCE", "STANDBY"),
+            ("voice", "VOICE INTERFACE", "READY"),
+            ("vision", "SCREEN ANALYSIS", "ON DEMAND"),
+            ("camera", "CAMERA / FACE", "OFF"),
+            ("gesture", "GESTURE INPUT", "OFF"),
+            ("memory", "LOCAL MEMORY", "READY"),
+            ("defense", "SYSTEM SECURITY", "MONITORING"),
+        ):
+            row = tk.Frame(left, bg=PANEL)
+            row.pack(fill="x", pady=5)
+            dot = tk.Label(row, text="◆", bg=PANEL, fg=CYAN_DIM, font=("Segoe UI", 9))
+            dot.pack(side="left")
+            text_box = tk.Frame(row, bg=PANEL)
+            text_box.pack(side="left", fill="x", expand=True, padx=(7, 0))
+            tk.Label(
+                text_box, text=label, bg=PANEL, fg=TEXT,
+                font=("Segoe UI", 8, "bold"), anchor="w"
+            ).pack(fill="x")
+            value = tk.Label(
+                text_box, text=state, bg=PANEL, fg=MUTED,
+                font=("Consolas", 8), anchor="w"
+            )
+            value.pack(fill="x")
+            self._subsystem_labels[key] = (dot, value)
+
+        center_outer, center = self._panel(dashboard, "Arc reactor / activity core")
+        center_outer.grid(row=0, column=1, sticky="nsew", padx=4)
+        center.configure(padx=8, pady=8)
+        self.core_canvas = tk.Canvas(
+            center, bg=PANEL, highlightthickness=0, height=330
+        )
+        self.core_canvas.pack(fill="both", expand=True)
+        self.core_canvas.bind("<Configure>", lambda _event: self._draw_core())
+        self._draw_core()
+        self.core_caption = tk.Label(
+            center, text="AWAITING COMMAND", bg=PANEL, fg=CYAN,
+            font=("Consolas", 10, "bold")
+        )
+        self.core_caption.pack(pady=(4, 2))
+        tk.Label(
+            center, text="LOCAL PROCESSING  •  USER-CONTROLLED SYSTEMS",
+            bg=PANEL, fg=MUTED, font=("Consolas", 7)
+        ).pack(pady=(0, 4))
+
+        right_outer, right = self._panel(dashboard, "Live telemetry")
+        right_outer.grid(row=0, column=2, sticky="nsew", padx=(8, 0))
+        self._metric_bars = {}
+        for key, label in (("cpu", "CPU LOAD"), ("ram", "MEMORY"), ("disk", "SYSTEM DRIVE")):
+            tk.Label(
+                right, text=label, bg=PANEL, fg=TEXT,
+                font=("Consolas", 8, "bold"), anchor="w"
+            ).pack(fill="x", pady=(8, 3))
+            bar = tk.Canvas(right, height=8, bg=PANEL_ALT, highlightthickness=0)
+            bar.pack(fill="x")
+            fill = bar.create_rectangle(0, 0, 0, 8, fill=CYAN, width=0)
+            self._metric_bars[key] = (bar, fill)
+        tk.Label(
+            right, text="MICROPHONE INPUT", bg=PANEL, fg=TEXT,
+            font=("Consolas", 8, "bold"), anchor="w"
+        ).pack(fill="x", pady=(18, 4))
+        self.mic_meter = tk.Canvas(right, height=10, bg=PANEL_ALT, highlightthickness=0)
+        self.mic_meter.pack(fill="x")
+        self._mic_bar = self.mic_meter.create_rectangle(0, 0, 0, 10, fill=GREEN, width=0)
+        self.face_status = tk.Label(
+            right, text="CAMERA OFF • FACE DETECTION ONLY", bg=PANEL,
+            fg=MUTED, font=("Consolas", 8), wraplength=190, justify="left"
+        )
+        self.face_status.pack(fill="x", pady=(18, 4))
+        self.gesture_status = tk.Label(
+            right, text="HAND GESTURES OFF", bg=PANEL, fg=MUTED,
+            font=("Consolas", 8), wraplength=190, justify="left"
+        )
+        self.gesture_status.pack(fill="x", pady=4)
+
+    def _draw_core(self):
+        if not hasattr(self, "core_canvas"):
+            return
+        canvas = self.core_canvas
+        canvas.delete("static_core")
+        width = max(canvas.winfo_width(), 260)
+        height = max(canvas.winfo_height(), 260)
+        cx, cy = width / 2, height / 2
+        radius = min(width, height) * 0.34
+        for scale, color, stroke in (
+            (1.34, LINE, 1), (1.12, CYAN_DIM, 1), (0.91, LINE, 2),
+            (0.72, CYAN_DIM, 1), (0.48, CYAN, 2), (0.24, LINE, 1)
+        ):
+            r = radius * scale
+            canvas.create_oval(
+                cx-r, cy-r, cx+r, cy+r, outline=color, width=stroke, tags="static_core"
+            )
+        for i in range(48):
+            angle = math.radians(i * 7.5)
+            inner = radius * (1.18 if i % 4 == 0 else 1.23)
+            outer = radius * (1.34 if i % 4 == 0 else 1.29)
+            canvas.create_line(
+                cx + math.cos(angle)*inner, cy + math.sin(angle)*inner,
+                cx + math.cos(angle)*outer, cy + math.sin(angle)*outer,
+                fill=CYAN_DIM if i % 4 == 0 else LINE,
+                width=2 if i % 4 == 0 else 1, tags="static_core"
+            )
+        canvas.create_text(
+            cx, cy, text="J", fill=CYAN, font=("Segoe UI", int(radius*0.72), "bold"),
+            tags="static_core"
+        )
+        canvas.create_text(
+            cx, cy + radius*0.56, text="J.A.R.V.I.S.", fill=TEXT,
+            font=("Consolas", 9, "bold"), tags="static_core"
+        )
+
+    def _build_activity(self):
+        outer, inner = self._panel(self.root, "System activity / conversation")
+        outer.pack(fill="both", expand=False, padx=22, pady=(0, 10))
+        self.log = tk.Text(
+            inner, height=6, bg="#06111d", fg=TEXT, insertbackground=CYAN,
+            wrap="word", font=("Consolas", 9), bd=0, padx=10, pady=8,
+            selectbackground=CYAN_DIM
+        )
+        self.log.pack(fill="both", expand=True)
+        self.log.tag_configure("who", foreground=CYAN, font=("Consolas", 9, "bold"))
+        self.log.tag_configure("body", foreground=TEXT)
+
+    def _build_controls(self):
+        controls = tk.Frame(self.root, bg=BG)
+        controls.pack(fill="x", padx=22, pady=(0, 16))
+        self.entry = tk.Entry(
+            controls, bg=PANEL_ALT, fg=TEXT, insertbackground=CYAN,
+            font=("Segoe UI", 11), bd=0, relief="flat"
+        )
+        self.entry.pack(side="left", fill="x", expand=True, ipady=11, padx=(0, 8))
+        self.entry.bind("<Return>", lambda _event: self.send())
+        self._button(controls, "SEND", self.send, primary=True)
+        self._button(controls, "VOICE", self._voice_action)
+        self._button(controls, "SCREEN", self._vision_action)
+        self._button(controls, "STOP AUDIO", self._stop_action)
+        self._wake_button = self._button(
+            controls, "WAKE: OFF", lambda: self.on_toggle_wake(not self._wake_enabled)
+        )
+        self._face_button = self._button(
+            controls, "FACE: OFF", lambda: self.on_toggle_face(not self._face_enabled)
+        )
+        self._gesture_button = self._button(
+            controls, "GESTURES: OFF",
+            lambda: self.on_toggle_gestures(not self._gestures_enabled)
+        )
+
+    def _voice_action(self):
+        self.on_voice()
+
+    def _vision_action(self):
+        self.core_caption.configure(text="SCREEN ANALYSIS REQUESTED")
+        self.on_vision()
+
+    def _stop_action(self):
+        self.on_stop_speaking()
+
+    def _button(self, parent, label, command, primary=False):
+        button = tk.Button(
+            parent, text=label, command=command,
+            bg=CYAN_DIM if primary else PANEL_ALT,
+            fg=BG if primary else CYAN,
+            activebackground=CYAN, activeforeground=BG,
+            bd=0, relief="flat", padx=10, pady=9,
+            font=("Segoe UI", 8, "bold"), cursor="hand2"
+        )
+        button.pack(side="left", padx=(0, 5))
         return button
 
     def add(self, who, text):
         self.log.configure(state="normal")
-        self.log.insert("end", f"\n{who} > {text}\n")
+        self.log.insert("end", f"{who}  ", "who")
+        self.log.insert("end", f"{text}\n", "body")
         self.log.see("end")
         self.log.configure(state="disabled")
 
@@ -191,14 +295,17 @@ class HUD:
         if text:
             self.entry.delete(0, "end")
             self.add("YOU", text)
+            self.core_caption.configure(text="PROCESSING REQUEST")
             self.on_send(text)
 
     def set_status(self, text):
         text = str(text)
-        color = "#ff7585" if "ERROR" in text else "#55e6b2"
-        if any(word in text for word in ("LISTENING", "WAKE", "SPEAKING")):
-            color = "#ffd166"
-        self.status.configure(text=text, fg=color)
+        color = RED if "ERROR" in text else GREEN
+        if any(word in text for word in ("LISTENING", "WAKE", "SPEAKING", "WORKING")):
+            color = AMBER
+        self.status.configure(text=f"● {text}", fg=color)
+        if hasattr(self, "core_caption"):
+            self.core_caption.configure(text=text.upper()[:42])
 
     def set_mic_level(self, level):
         self._mic_level = max(0.0, min(1.0, float(level)))
@@ -208,60 +315,62 @@ class HUD:
     def set_wake_state(self, enabled):
         self._wake_enabled = bool(enabled)
         self._wake_button.configure(
-            text="WAKE WORD: ON" if self._wake_enabled else "WAKE WORD: OFF",
-            fg="#ffd166" if self._wake_enabled else "#8ee8ff",
+            text="WAKE: ON" if enabled else "WAKE: OFF",
+            fg=AMBER if enabled else CYAN
         )
+        self._set_subsystem("voice", "WAKE LISTENER ACTIVE" if enabled else "READY")
 
     def set_face_state(self, enabled):
         self._face_enabled = bool(enabled)
         self._face_button.configure(
-            text="FACE DETECTION: ON" if self._face_enabled else "FACE DETECTION: OFF",
-            fg="#ffd166" if self._face_enabled else "#8ee8ff",
+            text="FACE: ON" if enabled else "FACE: OFF",
+            fg=AMBER if enabled else CYAN
         )
         self.set_face_status(
-            "CAMERA STARTING • FACE DETECTION ONLY"
-            if self._face_enabled
+            "CAMERA STARTING • FACE DETECTION ONLY" if enabled
             else "CAMERA OFF • FACE DETECTION ONLY"
         )
+        self._set_subsystem("camera", "STARTING" if enabled else "OFF")
 
     def set_face_count(self, count):
         if self._face_enabled:
-            self.set_face_status(
-                f"CAMERA ACTIVE • {int(count)} FACE(S) DETECTED"
-            )
+            self.set_face_status(f"CAMERA ACTIVE • {int(count)} FACE(S) DETECTED")
 
     def set_face_status(self, text):
         text = str(text)
-        color = "#ff7585" if "ERROR" in text else "#ffd166"
-        if "OFF" in text:
-            color = "#93b9cc"
+        color = RED if "ERROR" in text else (MUTED if "OFF" in text else AMBER)
         self.face_status.configure(text=text, fg=color)
 
     def set_gesture_state(self, enabled):
         self._gestures_enabled = bool(enabled)
         self._gesture_button.configure(
             text="GESTURES: ON" if enabled else "GESTURES: OFF",
-            fg="#ffd166" if enabled else "#8ee8ff",
+            fg=AMBER if enabled else CYAN
         )
-        self.set_gesture_status("HAND GESTURES STARTING" if enabled else "HAND GESTURES OFF")
+        self.set_gesture_status(
+            "HAND GESTURES STARTING" if enabled else "HAND GESTURES OFF"
+        )
+        self._set_subsystem("gesture", "STARTING" if enabled else "OFF")
 
     def set_gesture_status(self, text):
         text = str(text)
-        color = "#ff7585" if "ERROR" in text else "#ffd166"
-        if "OFF" in text:
-            color = "#93b9cc"
+        color = RED if "ERROR" in text else (MUTED if "OFF" in text else AMBER)
         self.gesture_status.configure(text=text, fg=color)
 
     def set_gesture(self, label):
         if self._gestures_enabled:
             self.set_gesture_status(f"GESTURE • {label}")
 
+    def _set_subsystem(self, key, value):
+        if key in getattr(self, "_subsystem_labels", {}):
+            dot, label = self._subsystem_labels[key]
+            label.configure(text=value, fg=AMBER if value not in ("OFF", "READY") else MUTED)
+            dot.configure(fg=GREEN if value in ("READY", "MONITORING") else CYAN_DIM)
+
     def confirm_action(self, description):
         if threading.current_thread() is self._tk_thread:
             return messagebox.askyesno(
-                "JARVIS action approval",
-                str(description),
-                parent=self.root,
+                "JARVIS action approval", str(description), parent=self.root
             )
         completed = threading.Event()
         outcome = {}
@@ -269,9 +378,7 @@ class HUD:
         def show_dialog():
             try:
                 outcome["approved"] = messagebox.askyesno(
-                    "JARVIS action approval",
-                    str(description),
-                    parent=self.root,
+                    "JARVIS action approval", str(description), parent=self.root
                 )
             except Exception as exc:
                 outcome["error"] = exc
@@ -289,9 +396,28 @@ class HUD:
         self.root.after(0, function, *args)
 
     def _animate(self):
-        self._phase = (self._phase + 8) % 360
+        self._phase = (self._phase + 5) % 360
         self.reactor.itemconfigure("pulse", start=self._phase)
-        self.root.after(45, self._animate)
+        if hasattr(self, "core_canvas"):
+            self.core_canvas.delete("sweep")
+            width = max(self.core_canvas.winfo_width(), 260)
+            height = max(self.core_canvas.winfo_height(), 260)
+            cx, cy = width / 2, height / 2
+            radius = min(width, height) * 0.34
+            self.core_canvas.create_arc(
+                cx-radius*1.12, cy-radius*1.12, cx+radius*1.12, cy+radius*1.12,
+                start=self._phase, extent=48, style="arc", outline=CYAN,
+                width=2, tags="sweep"
+            )
+        self.root.after(55, self._animate)
+
+    def _set_bar(self, key, value):
+        canvas, item = self._metric_bars[key]
+        width = max(canvas.winfo_width(), 1)
+        amount = max(0.0, min(100.0, float(value)))
+        color = RED if amount >= 90 else (AMBER if amount >= 75 else CYAN)
+        canvas.coords(item, 0, 0, width * amount / 100.0, 8)
+        canvas.itemconfigure(item, fill=color)
 
     def _refresh_metrics(self):
         try:
@@ -302,8 +428,11 @@ class HUD:
             self.metrics.configure(
                 text=f"CPU {cpu:.0f}%   RAM {ram:.0f}%   DISK {disk:.0f}%"
             )
+            self._set_bar("cpu", cpu)
+            self._set_bar("ram", ram)
+            self._set_bar("disk", disk)
         except Exception as exc:
-            self.metrics.configure(text=f"SYSTEM MONITOR ERROR: {exc}")
+            self.metrics.configure(text=f"TELEMETRY ERROR: {exc}")
         self.root.after(2000, self._refresh_metrics)
 
     def run(self):
