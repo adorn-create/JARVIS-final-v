@@ -7,7 +7,8 @@ from pathlib import Path
 
 import psutil
 
-from memory import forget, recall, remember\nfrom intent_engine import learn
+from memory import forget, recall, remember
+from intent_engine import learn
 
 LOG = logging.getLogger("jarvis.actions")
 APP_ALLOWLIST = {
