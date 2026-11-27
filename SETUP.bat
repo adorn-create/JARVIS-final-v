@@ -99,17 +99,10 @@ exit /b %errorlevel%
 where ollama >nul 2>&1
 if errorlevel 1 (
   echo Ollama was not found. Install it from https://ollama.com/download.
-  echo Then run: ollama run hf.co/mradermacher/Qwen2.5-7B-Instruct-abliterated-GGUF:Q4_K_M
   echo For screen vision, also run: ollama pull qwen2.5vl:7b
   exit /b 0
 )
 echo.
-echo JARVIS uses Ollama locally. Model downloads require several GB of disk space.
-set /p PULL_CHAT=Pull the JARVIS chat model now? (Y/N) [N]:
-if /i "%PULL_CHAT%"=="Y" (
-  ollama pull hf.co/mradermacher/Qwen2.5-7B-Instruct-abliterated-GGUF:Q4_K_M
-  if errorlevel 1 echo Chat model pull failed. Retry with: ollama run hf.co/mradermacher/Qwen2.5-7B-Instruct-abliterated-GGUF:Q4_K_M
-)
 echo.
 set /p PULL_VISION=Pull the local screen-vision model qwen2.5vl:7b now? (Y/N) [N]:
 if /i "%PULL_VISION%"=="Y" (
