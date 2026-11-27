@@ -1,0 +1,2 @@
+# Optional direct local GGUF inference (no Ollama required)
+llama-cpp-python>=0.3.8
