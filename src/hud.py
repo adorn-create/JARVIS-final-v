@@ -190,40 +190,60 @@ class HUD:
         self.gesture_status.pack(fill="x", pady=4)
 
     def _draw_core(self):
+        """Render the reactor at 3x resolution and downsample for smooth edges."""
         if not hasattr(self, "core_canvas"):
             return
+        from PIL import Image, ImageDraw, ImageFont, ImageTk
+
         canvas = self.core_canvas
-        canvas.delete("static_core")
         width = max(canvas.winfo_width(), 260)
         height = max(canvas.winfo_height(), 260)
-        cx, cy = width / 2, height / 2
-        radius = min(width, height) * 0.34
-        for scale, color, stroke in (
+        scale = 3
+        image = Image.new("RGBA", (width * scale, height * scale), PANEL)
+        draw = ImageDraw.Draw(image)
+        cx, cy = width * scale / 2, height * scale / 2
+        radius = min(width, height) * 0.34 * scale
+
+        def box(r):
+            return (cx-r, cy-r, cx+r, cy+r)
+
+        for factor, color, stroke in (
             (1.34, LINE, 1), (1.12, CYAN_DIM, 1), (0.91, LINE, 2),
             (0.72, CYAN_DIM, 1), (0.48, CYAN, 2), (0.24, LINE, 1)
         ):
-            r = radius * scale
-            canvas.create_oval(
-                cx-r, cy-r, cx+r, cy+r, outline=color, width=stroke, tags="static_core"
-            )
+            r = radius * factor
+            draw.ellipse(box(r), outline=color, width=max(1, stroke * scale))
+
         for i in range(48):
             angle = math.radians(i * 7.5)
             inner = radius * (1.18 if i % 4 == 0 else 1.23)
             outer = radius * (1.34 if i % 4 == 0 else 1.29)
-            canvas.create_line(
-                cx + math.cos(angle)*inner, cy + math.sin(angle)*inner,
-                cx + math.cos(angle)*outer, cy + math.sin(angle)*outer,
+            draw.line(
+                (cx + math.cos(angle)*inner, cy + math.sin(angle)*inner,
+                 cx + math.cos(angle)*outer, cy + math.sin(angle)*outer),
                 fill=CYAN_DIM if i % 4 == 0 else LINE,
-                width=2 if i % 4 == 0 else 1, tags="static_core"
+                width=2 * scale if i % 4 == 0 else scale
             )
-        canvas.create_text(
-            cx, cy, text="J", fill=CYAN, font=("Segoe UI", int(radius*0.72), "bold"),
-            tags="static_core"
+
+        sweep_radius = radius * 1.12
+        draw.arc(
+            (cx-sweep_radius, cy-sweep_radius, cx+sweep_radius, cy+sweep_radius),
+            start=self._phase, end=self._phase + 48,
+            fill=CYAN, width=2 * scale
         )
-        canvas.create_text(
-            cx, cy + radius*0.56, text="J.A.R.V.I.S.", fill=TEXT,
-            font=("Consolas", 9, "bold"), tags="static_core"
-        )
+        try:
+            big_font = ImageFont.truetype("segoeuib.ttf", max(12, int(radius * 0.72)))
+            small_font = ImageFont.truetype("consolab.ttf", max(10, int(9 * scale)))
+        except OSError:
+            big_font = ImageFont.load_default()
+            small_font = ImageFont.load_default()
+        draw.text((cx, cy - radius*0.08), "J", fill=CYAN, font=big_font, anchor="mm")
+        draw.text((cx, cy + radius*0.56), "J.A.R.V.I.S.", fill=TEXT, font=small_font, anchor="mm")
+
+        smooth = image.resize((width, height), Image.Resampling.LANCZOS)
+        self._core_photo = ImageTk.PhotoImage(smooth)
+        canvas.delete("all")
+        canvas.create_image(width / 2, height / 2, image=self._core_photo, anchor="center")
 
     def _build_activity(self):
         outer, inner = self._panel(self.root, "System activity / conversation")
@@ -399,16 +419,7 @@ class HUD:
         self._phase = (self._phase + 5) % 360
         self.reactor.itemconfigure("pulse", start=self._phase)
         if hasattr(self, "core_canvas"):
-            self.core_canvas.delete("sweep")
-            width = max(self.core_canvas.winfo_width(), 260)
-            height = max(self.core_canvas.winfo_height(), 260)
-            cx, cy = width / 2, height / 2
-            radius = min(width, height) * 0.34
-            self.core_canvas.create_arc(
-                cx-radius*1.12, cy-radius*1.12, cx+radius*1.12, cy+radius*1.12,
-                start=self._phase, extent=48, style="arc", outline=CYAN,
-                width=2, tags="sweep"
-            )
+            self._draw_core()
         self.root.after(55, self._animate)
 
     def _set_bar(self, key, value):
