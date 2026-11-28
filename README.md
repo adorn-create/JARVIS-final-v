@@ -207,3 +207,16 @@ F.R.I.D.A.Y.-style analysis is integrated into JARVIS as optional, on-demand too
 - **Emergency support:** provide general first-response reminders for fire, medical emergencies, road accidents, intrusion, severe weather, and power outages. JARVIS does not call emergency services; follow local authorities.
 
 The requested exclusions are intentional: **no suit control and no remote assistance**. F.R.I.D.A.Y. tools do not control weapons, vehicles, external devices, or remote computers. Movement, hazard, navigation, and emergency outputs are advisory only. These features are invoked on demand and do not start continuous camera, microphone, or location monitoring.
+
+
+## Unified JARVIS intelligence layer
+
+JARVIS now coordinates the existing JARVIS, E.V., F.R.I.D.A.Y., and MORPHEUS capabilities through one request pipeline.
+
+- **One command interface:** chat, voice, and the console all use the same assistant/tool execution path.
+- **Lightweight routing hints:** `src/module_router.py` uses local keyword rules to suggest the relevant subsystem(s). The existing Ollama assistant remains the coordinator and chooses among registered tools; routing does not launch extra agents or models.
+- **Shared HUD telemetry:** the subsystem panel shows JARVIS coordination and E.V., F.R.I.D.A.Y., and MORPHEUS selection/activity. Tool progress updates the active subsystem.
+- **Shared approval path:** modules continue to use the same user-approval callback for sensitive actions. Routing never grants permission or bypasses a tool's checks.
+- **One local AI brain:** no second LLM, cloud agent, or background autonomous agent is started. Existing face authentication, camera controls, wake-word controls, and hand-gesture controls remain separate and unchanged.
+
+Routing is advisory and intentionally simple. If a request is ambiguous, JARVIS remains the coordinator and should ask for clarification rather than guessing or running an unrelated action.
