@@ -38,6 +38,12 @@ class MorpheusMonitorTests(unittest.TestCase):
                 result = morpheus_monitor.triage_file(str(path))
             self.assertIn("extension_header_mismatch", {x["kind"] for x in result["indicators"]})
 
+    def test_defender_scan_is_windows_only(self):
+        with patch.object(morpheus_monitor.os, "name", "posix"):
+            result = morpheus_monitor.scan_with_windows_defender("sample.exe")
+        self.assertFalse(result["ok"])
+        self.assertIn("Windows", result["error"])
+
     def test_process_snapshot_is_read_only_and_bounded(self):
         result = morpheus_monitor.process_snapshot(10000)
         self.assertEqual(result["mode"], "read-only process snapshot")
