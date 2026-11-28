@@ -194,6 +194,9 @@ Set JARVIS_PUBLIC_ALERT_FEEDS in .env to semicolon-separated official HTTPS RSS/
 
 
 ## F.R.I.D.A.Y.-inspired mode (lightweight, no second AI model)
+E.V. camera-motion and acoustic-level outputs can also be combined by the F.R.I.D.A.Y. `friday_fuse_environmental_observations` tool. It accepts previously collected observations and optional user-reported safety signals, then reports whether multiple independent sources were observed. Motion and sound alone never identify a person or establish an emergency; the result is advisory only and does not contact responders.
+
+
 
 F.R.I.D.A.Y.-style analysis is integrated into JARVIS as optional, on-demand tools. It reuses the existing local assistant and standard Python/psutil functionality; no additional language model is loaded.
 
