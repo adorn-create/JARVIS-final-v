@@ -11,6 +11,11 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+try:
+    from dotenv import load_dotenv
+    load_dotenv(ROOT / ".env")
+except ImportError:
+    pass
 
 
 def _available(module: str) -> bool:
@@ -21,6 +26,9 @@ def _available(module: str) -> bool:
 
 
 def collect_report() -> dict:
+    adb_env = os.getenv("JARVIS_ADB_PATH", "").strip()
+    adb_env_path = Path(adb_env).expanduser() if adb_env else None
+    adb_path = shutil.which("adb") or (str(adb_env_path) if adb_env_path and adb_env_path.is_file() else None)
     report = {
         "python": {
             "version": platform.python_version(),
@@ -40,7 +48,7 @@ def collect_report() -> dict:
             "llama_cpp": _available("llama_cpp"),
         },
         "devices": {
-            "adb": shutil.which("adb") or os.getenv("JARVIS_ADB_PATH") or None,
+            "adb": adb_path,
         },
         "face_auth": {
             "profiles_file_present": False,
