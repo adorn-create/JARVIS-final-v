@@ -175,7 +175,7 @@ class Controller:
             self.hud.dispatch(self.hud.set_status, status)
 
     def send(self, text):
-        self.hud.set_status("THINKING • PLANNING")
+        self.hud.dispatch(self.hud.set_status, "THINKING • PLANNING")
 
         def worker():
             try:
@@ -186,15 +186,13 @@ class Controller:
                         )
                 answer = respond(text, approve=self._approve, progress=self._progress)
                 self.hud.dispatch(self.hud.add, "JARVIS", answer)
-                self.hud.dispatch(self.hud.set_status, "ONLINE • READY")
-                if self.voice:
-                    threading.Thread(
-                        target=self._speak,
-                        args=(answer,),
-                        daemon=True,
-                    ).start()
+                # Spoken replies are enabled by default, including for typed messages.
+                if self.voice is None:
+                    from voice import VoiceEngine
+                    self.voice = VoiceEngine()
+                self._speak(answer)
             except Exception as exc:
-                LOG.exception("request failed")
+                LOG.exception("request or speech output failed")
                 self.hud.dispatch(self.hud.add, "ERROR", str(exc))
                 self.hud.dispatch(self.hud.set_status, "ONLINE • ERROR")
 
