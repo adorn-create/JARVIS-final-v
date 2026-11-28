@@ -34,42 +34,43 @@ echo Virtual environment:
 .venv\Scripts\python.exe -m pip install -r requirements.txt
 if errorlevel 1 goto fail
 if not exist .env copy .env.example .env >nul
-call :ollama_setup
+
 echo.
-set /p VOICE=Install optional Whisper, speech, and wake-word packages? (Y/N) [N]:
-if /i "%VOICE%"=="Y" (
-  .venv\Scripts\python.exe -m pip install -r requirements-voice.txt
-  if errorlevel 1 echo Voice dependencies failed. Core JARVIS will still be installed.
+echo Installing voice, speech recognition, and wake-word support...
+.venv\Scripts\python.exe -m pip install -r requirements-voice.txt
+if errorlevel 1 echo WARNING: Voice dependencies failed. Check the error above.
+
+echo.
+echo Installing Windows desktop-control support...
+.venv\Scripts\python.exe -m pip install -r requirements-control.txt
+if errorlevel 1 echo WARNING: Desktop-control dependencies failed. Check the error above.
+
+echo.
+echo Installing face-recognition and camera support...
+.venv\Scripts\python.exe -m pip install -r requirements-face.txt
+if errorlevel 1 echo WARNING: Face/camera dependencies failed. Face recognition may be unavailable.
+
+echo.
+echo Installing hand-gesture recognition support...
+.venv\Scripts\python.exe -m pip install -r requirements-gestures.txt
+if errorlevel 1 echo WARNING: Gesture dependencies failed. Gestures may be unavailable.
+
+echo.
+where ollama >nul 2>&1
+if errorlevel 1 (
+  echo Ollama was not found. Install it from https://ollama.com/download.
+) else (
+  echo Ollama detected.
+  echo To install screen vision later, run: ollama pull qwen2.5vl:7b
 )
+
 echo.
-set /p CONTROL=Install optional Windows desktop-control packages? (Y/N) [N]:
-if /i "%CONTROL%"=="Y" (
-  .venv\Scripts\python.exe -m pip install -r requirements-control.txt
-  if errorlevel 1 echo Desktop-control dependencies failed. Chat and vision will still be available.
-)
-echo.
-set /p FACE=Install optional local face-detection packages? (Y/N) [N]:
-if /i "%FACE%"=="Y" (
-  .venv\Scripts\python.exe -m pip install -r requirements-face.txt
-  if errorlevel 1 echo Face-detection dependencies failed. The camera feature will be unavailable.
-)
-echo.
-echo.
-set /p GESTURES=Install optional hand-gesture recognition? (Y/N) [N]:
-if /i "%GESTURES%"=="Y" (
-  .venv\Scripts\python.exe -m pip install -r requirements-gestures.txt
-  if errorlevel 1 echo Gesture dependencies failed. Gestures will be unavailable until installed.
-)
-echo.
-set /p FACEAUTH=Install face-unlock dependencies and enroll Owner face? (Y/N) [N]:
-if /i "%FACEAUTH%"=="Y" (
-  .venv\Scripts\python.exe -m pip install -r requirements-face.txt
-  if errorlevel 1 echo Face-unlock dependency installation failed.
-  if not errorlevel 1 .venv\Scripts\python.exe src\main.py --enroll-face Owner
-)
-echo Setup finished. Starting JARVIS...
+echo Setup finished.
+echo To enroll or reset the Owner face profile, use the face enrollment/reset options documented by this project.
+echo Starting JARVIS...
 call LAUNCH.bat
 exit /b 0
+
 :create_venv
 set "PYTHON_EXE="
 where py >nul 2>&1
@@ -95,21 +96,7 @@ if not defined PYTHON_EXE (
 )
 "%PYTHON_EXE%" -m venv .venv
 exit /b %errorlevel%
-:ollama_setup
-where ollama >nul 2>&1
-if errorlevel 1 (
-  echo Ollama was not found. Install it from https://ollama.com/download.
-  echo For screen vision, also run: ollama pull qwen2.5vl:7b
-  exit /b 0
-)
-echo.
-echo.
-set /p PULL_VISION=Pull the local screen-vision model qwen2.5vl:7b now? (Y/N) [N]:
-if /i "%PULL_VISION%"=="Y" (
-  ollama pull qwen2.5vl:7b
-  if errorlevel 1 echo Vision model pull failed. You can retry with: ollama pull qwen2.5vl:7b
-)
-exit /b 0
+
 :fail
 echo Setup failed. See the error above.
 pause
