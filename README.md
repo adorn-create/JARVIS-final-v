@@ -166,3 +166,9 @@ Run the unit tests with:
 ```powershell
 .venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
+
+### HTTPS/TLS inspection
+
+JARVIS can inspect one authorized localhost or private/loopback/link-local IPv4 HTTPS lab endpoint. It performs a TLS handshake only and reports certificate trust/verification, expiry, issuer, subject, subject alternative names (when available), SHA-256 certificate fingerprint, negotiated TLS version, and cipher. If certificate verification fails, JARVIS records the failure and may make a second unverified handshake only to collect diagnostic handshake metadata. No HTTP request, authentication, or exploit payload is sent. Public IPs, hostnames other than localhost, and CIDR ranges are rejected. The tool requires per-action approval.
+
+Example voice/text request: `Inspect HTTPS/TLS on https://192.168.1.20:443`.
