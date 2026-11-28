@@ -15,7 +15,7 @@ This file distinguishes code present in the repository from capabilities that ha
 | MORPHEUS | Defender/firewall posture, bounded private-host checks, TLS, CVE metadata, read-only file hash/signature triage, process-path review alerts | Security-engine and triage tests | Defender event correlation, malware samples, and lab integration pending |
 | E.V. | On-demand camera/audio/wearable/feed/data tools; observations can be passed to F.R.I.D.A.Y. fusion | Unit tests for selected helpers | Real sensor/feed adapters pending |
 | F.R.I.D.A.Y. | Advisory movement, safety, diagnostics, navigation and conservative multi-source observation fusion | Unit tests for selected helpers | Continuous sensor fusion and real-world validation pending |
-| ULTRON | Planning, review proposals, simulation, resilience checks | Unit tests for selected helpers | Physical robotics/distributed nodes not implemented |
+| ULTRON | Planning, review proposals, local saved-plan history, manual step tracking, simulation, resilience checks | Unit tests for selected helpers | Physical robotics/distributed nodes not implemented |
 
 ## Explicitly not delivered by this repository
 
@@ -25,7 +25,7 @@ This file distinguishes code present in the repository from capabilities that ha
 - Face anti-spoofing / liveness detection suitable for protecting sensitive accounts.
 - General-purpose Android UI automation, lock-screen interaction, or automated ADB RSA approval.
 - Automatic wearable discovery, universal sensor fusion, or certified emergency detection. E.V. and F.R.I.D.A.Y. tools are currently opt-in and advisory. A new fusion helper correlates already-collected camera-motion, acoustic-level and user-reported signals, but does not continuously infer or certify emergencies.
-- Real robotics, physical fleet actuation, self-replication, or unattended source-code rewriting. ULTRON planning and fleet actions remain simulations/proposals.
+- Real robotics, physical fleet actuation, self-replication, or unattended source-code rewriting. ULTRON can save and track advisory plans locally, but execution remains manual and approval-controlled.
 - Verified cross-platform desktop automation.
 
 ## MORPHEUS read-only triage added on the upgrade branch
