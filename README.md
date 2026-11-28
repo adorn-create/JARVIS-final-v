@@ -247,6 +247,7 @@ No self-replication, unauthorized infiltration, weapon control, automatic source
 MORPHEUS includes two additional read-only investigation tools:
 
 - `security_triage_file` hashes a selected file with SHA-256, checks basic file-header/extension consistency, reads the Windows download-zone marker, and checks Authenticode signature status when available.
+- `security_defender_scan_file` runs an explicitly approved Microsoft Defender custom scan on one file. Defender may quarantine/remove a detection according to its existing policy; JARVIS does not change Defender settings.
 - `security_process_snapshot` reports processes whose executable paths are in common user-writable folders.
 
 The PC awareness loop also reports newly observed process images launched from common temporary/download folders, with a cooldown. These are weak indicators for human review, not malware verdicts. Files are never executed, uploaded, modified, deleted, or quarantined by these tools; processes are never stopped. This is not a replacement for Microsoft Defender or a production EDR product.
