@@ -48,12 +48,12 @@ if errorlevel 1 echo WARNING: Desktop-control dependencies failed. Check the err
 echo.
 echo Installing face-recognition and camera support...
 .venv\Scripts\python.exe -m pip install -r requirements-face.txt
-if errorlevel 1 echo WARNING: Face/camera dependencies failed. Face recognition may be unavailable.
+if errorlevel 1 goto fail
 
 echo.
 echo Installing hand-gesture recognition support...
 .venv\Scripts\python.exe -m pip install -r requirements-gestures.txt
-if errorlevel 1 echo WARNING: Gesture dependencies failed. Gestures may be unavailable.
+if errorlevel 1 echo WARNING: Gesture dependencies failed. Check the error above.
 
 echo.
 where ollama >nul 2>&1
@@ -65,8 +65,34 @@ if errorlevel 1 (
 )
 
 echo.
-echo Setup finished.
-echo To enroll or reset the Owner face profile, use the face enrollment/reset options documented by this project.
+echo ========================================
+echo       JARVIS FACE SCAN
+echo ========================================
+if exist "%LOCALAPPDATA%\JARVIS\face_auth\users.json" goto authenticate_owner
+if exist "%LOCALAPPDATA%\JARVIS\face_auth\face_samples.npz" goto authenticate_owner
+echo First-time setup: enrolling the Owner face now.
+.venv\Scripts\python.exe src\main.py --enroll-face Owner
+if errorlevel 1 goto face_fail
+goto face_success
+
+:authenticate_owner
+echo Existing face profile found. Please verify the Owner face to continue.
+.venv\Scripts\python.exe src\face_auth.py
+if errorlevel 1 goto face_fail
+goto face_success
+
+:face_fail
+echo.
+echo Face scan/enrollment did not complete. SETUP.bat has NOT been deleted.
+echo Check camera permissions, lighting, and face profile files, then run setup again.
+pause
+exit /b 1
+
+:face_success
+echo.
+echo Face scan successful.
+echo Removing SETUP.bat as requested...
+start "" /b cmd /c "ping 127.0.0.1 -n 3 >nul & del /f /q ""%~f0"""
 echo Starting JARVIS...
 call LAUNCH.bat
 exit /b 0
