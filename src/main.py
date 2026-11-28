@@ -10,6 +10,7 @@ from memory import add, clear, history, init_db, profile_context
 from llm_client import chat_completion
 from tools import TOOL_DEFINITIONS, execute
 from intent_engine import classify
+from module_router import route_request
 
 ROOT = os.path.dirname(os.path.dirname(__file__))
 load_dotenv(os.path.join(ROOT, ".env"))
@@ -68,7 +69,12 @@ def respond(text, approve=None, progress=None):
     add("user", text)
     memory = profile_context()
     intent = classify(text)
-    system_message = SYSTEM + memory + "\n\nLocal lightweight intent model: " + intent["hint"]
+    routing = route_request(text)
+    system_message = (SYSTEM + memory + "\n\nLocal lightweight intent model: " + intent["hint"]
+                     + "\n\nUnified module routing: " + routing["hint"]
+                     + "\nSubsystems are capabilities within this one JARVIS process, not separate AI agents or models.")
+    if progress:
+        progress("ROUTED • " + " + ".join(routing["modules"]))
     messages = [{"role": "system", "content": system_message}] + history(18)
     for _ in range(MAX_TOOL_ROUNDS):
         message = chat(messages)
@@ -146,9 +152,25 @@ class Controller:
         return self.hud.confirm_action(description)
 
     def _progress(self, status):
-        if str(status).startswith("ALERT •"):
-            self.hud.dispatch(self.hud.add, "F.R.I.D.A.Y.", str(status)[7:].strip())
+        status = str(status)
+        if status.startswith("ALERT •"):
+            self.hud.dispatch(self.hud.add, "F.R.I.D.A.Y.", status[7:].strip())
+            self.hud.dispatch(self.hud.set_module_status, "F.R.I.D.A.Y.", "ALERT")
             self.hud.dispatch(self.hud.set_status, "ALERT • F.R.I.D.A.Y.")
+        elif status.startswith("ROUTED •"):
+            selected = [part.strip() for part in status[8:].split("+") if part.strip()]
+            self.hud.dispatch(self.hud.set_module_status, "JARVIS", "COORDINATING")
+            for module in ("E.V.", "F.R.I.D.A.Y.", "MORPHEUS"):
+                self.hud.dispatch(self.hud.set_module_status, module,
+                                  "SELECTED" if module in selected else "STANDBY")
+            self.hud.dispatch(self.hud.set_status, "ROUTED • " + " + ".join(selected))
+        elif status.startswith("WORKING •"):
+            tool = status.split("•", 1)[-1].strip().lower()
+            module = ("MORPHEUS" if tool.startswith("security_") else
+                      "E.V." if tool.startswith("ev_") else
+                      "F.R.I.D.A.Y." if tool.startswith("friday_") else "JARVIS")
+            self.hud.dispatch(self.hud.set_module_status, module, "ACTIVE")
+            self.hud.dispatch(self.hud.set_status, status)
         else:
             self.hud.dispatch(self.hud.set_status, status)
 
