@@ -304,6 +304,14 @@ TOOL_DEFINITIONS = [
     {
         "type": "function",
         "function": {
+            "name": "security_defender_scan_file",
+            "description": "Run a Microsoft Defender custom scan on one selected local file. Requires explicit approval. Defender's configured policy may quarantine or remove a detected threat; JARVIS does not alter Defender settings. Review Windows Security Protection History afterward.",
+            "parameters": {"type": "object", "properties": {"file_path": {"type": "string"}}, "required": ["file_path"], "additionalProperties": False},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "security_triage_file",
             "description": "Perform read-only local triage of one user-selected file: SHA-256, file header, extension indicators, Windows download-zone marker, and Authenticode signature where available. Never executes, uploads, modifies, deletes, or quarantines the file. This is not a malware verdict and requires user approval.",
             "parameters": {"type": "object", "properties": {"file_path": {"type": "string"}}, "required": ["file_path"], "additionalProperties": False},
@@ -933,6 +941,18 @@ def execute(name, args, confirm=None, progress=None):
         if not _confirm_action(confirm, f"Add this training example to JARVIS's local intent model?\\n\\nCategory: {label}\\nPhrase: {phrase}"):
             return {"ok": False, "error": "User did not approve model training."}
         return learn(phrase, label)
+    if name == "security_defender_scan_file":
+        from morpheus_monitor import scan_with_windows_defender
+        file_path = str(args.get("file_path", "")).strip()
+        if not _confirm_action(
+            confirm,
+            "Run a Microsoft Defender custom scan on this file?\n\n"
+            + file_path
+            + "\nIMPORTANT: Defender's existing policy may quarantine or remove a detected threat. "
+            "JARVIS will not change Defender settings."
+        ):
+            return {"ok": False, "error": "User did not approve the Microsoft Defender scan."}
+        return scan_with_windows_defender(file_path)
     if name == "security_triage_file":
         from morpheus_monitor import triage_file
         file_path = str(args.get("file_path", "")).strip()
