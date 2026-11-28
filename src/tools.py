@@ -780,6 +780,14 @@ TOOL_DEFINITIONS = [
     {
         "type": "function",
         "function": {
+            "name": "android_set_device_alias",
+            "description": "Give a friendly local name to one Android device currently visible to ADB. Stores only the serial-to-label mapping on this PC; never stores credentials. Requires explicit user approval.",
+            "parameters": {"type": "object", "properties": {"serial": {"type": "string"}, "alias": {"type": "string", "minLength": 1, "maxLength": 32}}, "required": ["serial", "alias"], "additionalProperties": False}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "android_wake_devices",
             "description": "Wake the displays of selected, currently authorized Android devices in parallel. Does not unlock them, dismiss the lock screen, or enter a PIN. Requires explicit user approval.",
             "parameters": {"type": "object", "properties": {"serials": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 16}}, "required": ["serials"], "additionalProperties": False}
@@ -818,6 +826,13 @@ def execute(name, args, confirm=None, progress=None):
     if name == "android_list_devices":
         from android_bridge import list_android_devices
         return list_android_devices()
+    if name == "android_set_device_alias":
+        from android_bridge import set_android_device_alias
+        serial = str(args.get("serial", "")).strip()
+        alias = str(args.get("alias", "")).strip()
+        if not _confirm_action(confirm, f"Save the local device name '{alias}' for Android device {serial}? No passwords or pairing codes are stored."):
+            return {"ok": False, "error": "User did not approve saving the Android device name."}
+        return set_android_device_alias(serial, alias)
     if name == "android_wake_devices":
         from android_bridge import wake_android_displays
         serials = args.get("serials", [])
