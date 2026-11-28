@@ -166,7 +166,7 @@ class HUD:
         right_outer, right = self._panel(dashboard, "Live telemetry")
         right_outer.grid(row=0, column=2, sticky="nsew", padx=(8, 0))
         self._metric_bars = {}
-        for key, label in (("cpu", "CPU LOAD"), ("ram", "MEMORY"), ("disk", "SYSTEM DRIVE")):
+        for key, label in (("cpu", "CPU LOAD"), ("ram", "SYSTEM MEMORY"), ("disk", "SYSTEM DRIVE"), ("process", "JARVIS PROCESS RAM")):
             tk.Label(
                 right, text=label, bg=PANEL, fg=TEXT,
                 font=("Consolas", 8, "bold"), anchor="w"
@@ -202,7 +202,7 @@ class HUD:
         canvas = self.core_canvas
         width = max(canvas.winfo_width(), 260)
         height = max(canvas.winfo_height(), 260)
-        scale = 3
+        scale = 2
         image = Image.new("RGBA", (width * scale, height * scale), PANEL)
         draw = ImageDraw.Draw(image)
         cx, cy = width * scale / 2, height * scale / 2
@@ -464,7 +464,8 @@ class HUD:
         self.reactor.itemconfigure("pulse", start=self._phase)
         if hasattr(self, "core_canvas"):
             self._draw_core()
-        self.root.after(55, self._animate)
+        # 10 FPS keeps the HUD smooth while reducing continuous CPU work.
+        self.root.after(100, self._animate)
 
     def _set_bar(self, key, value):
         canvas, item = self._metric_bars[key]
@@ -486,6 +487,11 @@ class HUD:
             self._set_bar("cpu", cpu)
             self._set_bar("ram", ram)
             self._set_bar("disk", disk)
+            process_gb = psutil.Process(os.getpid()).memory_info().rss / (1024 ** 3)
+            self._set_bar("process", min(100.0, process_gb / 2.0 * 100.0))
+            self.metrics.configure(
+                text=f"CPU {cpu:.0f}%   RAM {ram:.0f}%   DISK {disk:.0f}%   JARVIS {process_gb:.2f} GB"
+            )
         except Exception as exc:
             self.metrics.configure(text=f"TELEMETRY ERROR: {exc}")
         self.root.after(2000, self._refresh_metrics)
