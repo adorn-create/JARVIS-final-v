@@ -304,6 +304,72 @@ TOOL_DEFINITIONS = [
     {
         "type": "function",
         "function": {
+            "name": "security_host_audit",
+            "description": "Read the local Windows Defender and Windows Firewall status. Read-only; does not change security settings.",
+            "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "security_scan_private_host",
+            "description": "Perform a conservative TCP connect-only check against ONE explicitly authorized private, loopback, or link-local IPv4 address. Only allowlisted ports are accepted; no payloads or exploit attempts are sent. Always obtain user approval before invoking.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "target": {"type": "string", "description": "One literal private IPv4 address; no hostname or CIDR."},
+                    "ports": {"type": "array", "items": {"type": "integer", "enum": [22, 53, 80, 135, 139, 443, 445, 3306, 3389, 5432, 5985, 5986, 8000, 8080, 8443, 8888]}, "maxItems": 16},
+                },
+                "required": ["target"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "security_check_local_web_headers",
+            "description": "Inspect security-related HTTP response headers on a localhost or private-IP lab web server using HEAD only. Requires user approval; no exploit payloads.",
+            "parameters": {
+                "type": "object",
+                "properties": {"url": {"type": "string"}},
+                "required": ["url"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "security_lab_demo",
+            "description": "Run the harmless in-memory path-traversal validation demonstration. It touches no network, files, or external targets. Requires user confirmation to start the lab lesson.",
+            "parameters": {
+                "type": "object",
+                "properties": {"demo": {"type": "string", "enum": ["path_traversal_guard"]}},
+                "required": ["demo"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "security_lookup_cves",
+            "description": "Search NIST NVD for CVE metadata by product or keyword. This sends the keyword to the public NVD API; results are intelligence leads, not proof that a host is vulnerable.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "keyword": {"type": "string"},
+                    "limit": {"type": "integer", "minimum": 1, "maximum": 10},
+                },
+                "required": ["keyword"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "system_status",
             "description": "Read CPU, RAM, disk, battery, and top memory-consuming processes.",
             "parameters": {
@@ -570,6 +636,43 @@ def execute(name, args, confirm=None, progress=None):
         if not _confirm_action(confirm, f"Add this training example to JARVIS's local intent model?\\n\\nCategory: {label}\\nPhrase: {phrase}"):
             return {"ok": False, "error": "User did not approve model training."}
         return learn(phrase, label)
+    if name == "security_host_audit":
+        from security_engine import audit_windows_security
+        return audit_windows_security()
+    if name == "security_scan_private_host":
+        from security_engine import scan_private_host
+        target = str(args.get("target", "")).strip()
+        ports = args.get("ports")
+        if not _confirm_action(
+            confirm,
+            "Run a limited TCP connect-only scan against this single authorized private host?\n\n"
+            f"Target: {target}\nPorts: {ports if ports else 'JARVIS default safe port list'}\n"
+            "No exploit payloads will be sent."
+        ):
+            return {"ok": False, "error": "User did not approve the network check."}
+        return scan_private_host(target, ports=ports)
+    if name == "security_check_local_web_headers":
+        from security_engine import check_local_web_headers
+        url = str(args.get("url", "")).strip()
+        if not _confirm_action(
+            confirm,
+            "Inspect HTTP security headers on this localhost/private lab endpoint?\n\n" + url
+        ):
+            return {"ok": False, "error": "User did not approve the web-header check."}
+        return check_local_web_headers(url)
+    if name == "security_lab_demo":
+        from security_engine import run_safe_lab_demo
+        demo = str(args.get("demo", "")).strip()
+        if not _confirm_action(
+            confirm,
+            "Run the harmless in-memory security lab demonstration?\n\n"
+            "It will not access the network or read/write files."
+        ):
+            return {"ok": False, "error": "User did not approve the lab demonstration."}
+        return run_safe_lab_demo(demo)
+    if name == "security_lookup_cves":
+        from security_engine import lookup_cves
+        return lookup_cves(args.get("keyword", ""), args.get("limit", 5))
     if name == "report_progress":
         status = str(args.get("status", "")).strip()[:120]
         if progress and status:
