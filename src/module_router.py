@@ -2,6 +2,7 @@
 import re
 
 MODULE_RULES = {
+    "ANDROID": (r"\b(android|adb|phone|phones|tablet|tablets|wireless debugging|open youtube on|launch app on)\b",),
     "ULTRON": (r"\b(ultron|strategic plan|self improvement|self-improvement|fleet simulation|robot fleet|resilience check|adaptive defense|improvement proposal)\b",),
     "MORPHEUS": (
         r"\b(cve|vulnerabilit|exploit|firewall|defender|malware|security scan|tls|https scan|port scan|subnet inventory|device inventory|penetration test|cyber|network audit)\b",
