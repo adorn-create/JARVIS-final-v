@@ -28,7 +28,7 @@ class EVFeatureTests(unittest.TestCase):
             root = Path(tmp)
             (root / "data").mkdir()
             (root / "logs").mkdir()
-            (root / "data" / "metrics.csv").write_text("cpu,ram\\n10,20\\n30,40\\n", encoding="utf-8")
+            (root / "data" / "metrics.csv").write_text("cpu,ram\n10,20\n30,40\n", encoding="utf-8")
             result = analyze_project_file("data/metrics.csv", root=root)
             self.assertEqual(result["rows"], 2)
             self.assertEqual(result["numeric_summary"]["cpu"]["mean"], 20.0)
