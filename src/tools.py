@@ -328,6 +328,22 @@ TOOL_DEFINITIONS = [
     {
         "type": "function",
         "function": {
+            "name": "security_inventory_authorized_subnet",
+            "description": "Inventory up to 14 hosts on one explicitly authorized private IPv4 /28-or-smaller subnet. Checks only allowlisted TCP ports using connect-only probes; no banners, login attempts, exploit payloads, or configuration changes. Requires explicit user approval.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "cidr": {"type": "string", "description": "Private IPv4 subnet, e.g. 192.168.1.0/28. Must be /28 or smaller."},
+                    "ports": {"type": "array", "items": {"type": "integer", "enum": [22, 53, 80, 135, 139, 443, 445, 3306, 3389, 5432, 5985, 5986, 8000, 8080, 8443, 8888]}, "maxItems": 16}
+                },
+                "required": ["cidr"],
+                "additionalProperties": False
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "security_check_local_web_headers",
             "description": "Inspect security-related HTTP response headers on a localhost or private-IP lab web server using HEAD only. Requires user approval; no exploit payloads.",
             "parameters": {
@@ -826,6 +842,18 @@ def execute(name, args, confirm=None, progress=None):
         ):
             return {"ok": False, "error": "User did not approve the network check."}
         return scan_private_host(target, ports=ports)
+    if name == "security_inventory_authorized_subnet":
+        from security_engine import scan_authorized_subnet
+        cidr = str(args.get("cidr", "")).strip()
+        ports = args.get("ports")
+        if not _confirm_action(
+            confirm,
+            "Inventory this explicitly authorized private subnet?\n\n"
+            f"Network: {cidr}\nPorts: {ports if ports else 'JARVIS default safe port list'}\n"
+            "Maximum 14 hosts. TCP connect-only checks; no exploit payloads, logins, or changes."
+        ):
+            return {"ok": False, "error": "User did not approve subnet inventory."}
+        return scan_authorized_subnet(cidr, ports=ports)
     if name == "security_check_local_web_headers":
         from security_engine import check_local_web_headers
         url = str(args.get("url", "")).strip()
