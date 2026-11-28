@@ -139,7 +139,60 @@ class Controller:
         from awareness import AwarenessMonitor
         self.awareness = AwarenessMonitor(on_event=self._awareness_event)
         self.awareness.start()
+        # Lightweight USB/ADB presence monitor. It only detects and reports devices;
+        # it never pairs, unlocks, or sends commands automatically.
+        self._android_watch_stop = threading.Event()
+        self._android_watch_thread = threading.Thread(
+            target=self._android_watch_loop, name="JARVIS-Android-Watch", daemon=True
+        )
+        self._android_watch_thread.start()
         self.hud.root.protocol("WM_DELETE_WINDOW", self.shutdown)
+
+    def _android_watch_loop(self):
+        previous = {}
+        adb_warning_shown = False
+        while not self._android_watch_stop.wait(5):
+            if self._shutting_down:
+                break
+            try:
+                from android_bridge import list_android_devices
+                result = list_android_devices()
+                adb_warning_shown = False
+                current = {
+                    item["serial"]: item
+                    for item in result.get("devices", [])
+                    if item.get("state") in {"device", "unauthorized", "offline"}
+                }
+                for serial, item in current.items():
+                    state = item.get("state")
+                    prior = previous.get(serial, {}).get("state")
+                    if prior == state:
+                        continue
+                    model = item.get("model") or item.get("device") or "Android device"
+                    if state == "device":
+                        message = (
+                            f"{model} connected and authorized via ADB. "
+                            "Say “list my Android devices” to view/manage it."
+                        )
+                    elif state == "unauthorized":
+                        message = (
+                            f"{model} detected. Unlock the phone and approve "
+                            "the USB debugging/RSA prompt to authorize this PC."
+                        )
+                    else:
+                        message = f"{model} is visible to ADB but currently offline."
+                    self.hud.dispatch(self.hud.add, "ANDROID • DEVICE", message)
+                    self.hud.dispatch(self.hud.set_status, f"ANDROID • {state.upper()}")
+                for serial, item in previous.items():
+                    if serial not in current and item.get("state") in {"device", "unauthorized"}:
+                        model = item.get("model") or item.get("device") or "Android device"
+                        self.hud.dispatch(self.hud.add, "ANDROID • DEVICE", f"{model} disconnected.")
+                previous = current
+            except Exception as exc:
+                # ADB may not be installed yet; avoid filling the HUD/log with repeats.
+                if not adb_warning_shown:
+                    LOG.info("Android auto-detection unavailable: %s", exc)
+                    adb_warning_shown = True
 
     def _awareness_event(self, event):
         message = event.get("message", "")
@@ -417,6 +470,8 @@ class Controller:
         if self._shutting_down:
             return
         self._shutting_down = True
+        if hasattr(self, "_android_watch_stop"):
+            self._android_watch_stop.set()
         self.wake_enabled = False
         self.face_detection_enabled = False
         self.hud.set_status("SHUTTING DOWN • CLOSING LOCAL DEVICES")
