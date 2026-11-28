@@ -341,6 +341,19 @@ TOOL_DEFINITIONS = [
     {
         "type": "function",
         "function": {
+            "name": "security_scan_https_tls",
+            "description": "Inspect TLS negotiation, certificate trust, expiry, issuer, SAN and negotiated cipher on one localhost or private-IP HTTPS lab endpoint. TLS handshake only; no HTTP request or exploit payload. Requires user approval.",
+            "parameters": {
+                "type": "object",
+                "properties": {"url": {"type": "string"}},
+                "required": ["url"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "security_lab_demo",
             "description": "Run the harmless in-memory path-traversal validation demonstration. It touches no network, files, or external targets. Requires user confirmation to start the lab lesson.",
             "parameters": {
@@ -660,6 +673,16 @@ def execute(name, args, confirm=None, progress=None):
         ):
             return {"ok": False, "error": "User did not approve the web-header check."}
         return check_local_web_headers(url)
+    if name == "security_scan_https_tls":
+        from security_engine import scan_private_https_tls
+        url = str(args.get("url", "")).strip()
+        if not _confirm_action(
+            confirm,
+            "Run a TLS handshake and certificate inspection against this authorized localhost/private HTTPS lab endpoint?\n\n"
+            + url + "\nNo HTTP request or exploit payload will be sent."
+        ):
+            return {"ok": False, "error": "User did not approve the HTTPS/TLS scan."}
+        return scan_private_https_tls(url)
     if name == "security_lab_demo":
         from security_engine import run_safe_lab_demo
         demo = str(args.get("demo", "")).strip()
