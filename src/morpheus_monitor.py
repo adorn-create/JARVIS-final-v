@@ -33,7 +33,7 @@ def _file_signature(path: Path) -> dict:
         "$s = Get-AuthenticodeSignature -LiteralPath $env:JARVIS_TRIAGE_PATH; "
         "[pscustomobject]@{Status=[string]$s.Status; "
         "StatusMessage=[string]$s.StatusMessage; "
-        "Signer=if($s.SignerCertificate){$s.SignerCertificate.Subject}else{$null}} "
+        "Signer=$(if($s.SignerCertificate){$s.SignerCertificate.Subject}else{$null})} "
         "| ConvertTo-Json -Compress"
     )
     env = os.environ.copy()
