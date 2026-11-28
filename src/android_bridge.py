@@ -5,6 +5,7 @@ It never enters PINs, bypasses Android lock screens, reads private device data,
 or executes arbitrary shell commands.
 """
 import concurrent.futures
+import ipaddress
 import logging
 import os
 import re
@@ -155,6 +156,13 @@ def pair_wireless_android_device(address, pairing_code):
     if not re.fullmatch(r"[0-9]{6}", code):
         raise ValueError("Enter the six-digit pairing code shown by Android Wireless Debugging.")
     # Pairing code is used only for this call and is never logged or persisted by JARVIS.
+    host = address.rsplit(":", 1)[0].strip("[]")
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError as exc:
+        raise ValueError("Use the phone private LAN IP shown in Wireless Debugging.") from exc
+    if not ip.is_private or ip.is_loopback or ip.is_unspecified:
+        raise ValueError("Wireless pairing is limited to a private LAN address.")
     output = _run(["pair", address, code], timeout=30)
     return {"ok": "successfully paired" in output.lower(), "output": output[:300],
             "note": "Pairing establishes ADB trust; use the phone's separate connect endpoint if Android reports one."}
