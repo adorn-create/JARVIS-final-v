@@ -242,6 +242,15 @@ Tools: `ultron_capability_report`, `ultron_strategic_plan`, `ultron_review_impro
 No self-replication, unauthorized infiltration, weapon control, automatic source rewriting, or unattended physical robotics is included.
 
 
+## MORPHEUS local file and process triage
+
+MORPHEUS includes two additional read-only investigation tools:
+
+- `security_triage_file` hashes a selected file with SHA-256, checks basic file-header/extension consistency, reads the Windows download-zone marker, and checks Authenticode signature status when available.
+- `security_process_snapshot` reports processes whose executable paths are in common user-writable folders.
+
+The PC awareness loop also reports newly observed process images launched from common temporary/download folders, with a cooldown. These are weak indicators for human review, not malware verdicts. Files are never executed, uploaded, modified, deleted, or quarantined by these tools; processes are never stopped. This is not a replacement for Microsoft Defender or a production EDR product.
+
 ## MORPHEUS authorized real-device assessment
 
 MORPHEUS includes an approval-gated private-network inventory tool for devices you own or have explicit permission to assess.
