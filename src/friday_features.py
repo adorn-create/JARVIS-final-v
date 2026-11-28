@@ -85,6 +85,59 @@ def assess_safety_signals(signals):
     }
 
 
+def fuse_environmental_observations(
+    camera_motion_detected=False,
+    acoustic_classification="not_sampled",
+    reported_signals=None,
+):
+    """Combine opt-in E.V. observations into a conservative F.R.I.D.A.Y. advisory.
+
+    Sensor observations are weak contextual clues. Only explicitly supplied
+    safety signals produce scenario guidance; no person is classified and no
+    emergency is automatically declared or contacted.
+    """
+    if not isinstance(camera_motion_detected, bool):
+        raise ValueError("camera_motion_detected must be true or false.")
+    allowed_acoustics = {
+        "not_sampled", "quiet", "moderate ambient sound",
+        "loud or sustained ambient sound", "strong transient or very loud sound",
+    }
+    acoustic = str(acoustic_classification or "not_sampled").strip().lower()
+    if acoustic not in allowed_acoustics:
+        raise ValueError("Unsupported acoustic classification.")
+    signals = reported_signals or []
+    if not isinstance(signals, list):
+        raise ValueError("reported_signals must be a list.")
+    advisory = assess_safety_signals(signals)
+    evidence = []
+    if camera_motion_detected:
+        evidence.append({"source": "camera_motion", "observation": "moving regions detected; object identity and cause unknown"})
+    if acoustic not in {"not_sampled", "quiet"}:
+        evidence.append({"source": "microphone_level", "observation": acoustic})
+    if advisory["signals"]:
+        evidence.append({"source": "user_report", "observation": "user-supplied safety signals", "signals": advisory["signals"]})
+    independent_sources = len({item["source"] for item in evidence})
+    corroboration = (
+        "multiple_sources_observed" if independent_sources >= 2
+        else "single_source_observed" if independent_sources == 1
+        else "no_indicators_supplied"
+    )
+    return {
+        "ok": True,
+        "system": "E.V. + F.R.I.D.A.Y. advisory fusion",
+        "evidence": evidence,
+        "independent_sources": independent_sources,
+        "corroboration": corroboration,
+        "reported_signal_advisory": {
+            "score_0_to_10": advisory["advisory_score_0_to_10"],
+            "level": advisory["level"],
+            "suggested_actions": advisory["suggested_actions"],
+        },
+        "decision": "review_observations" if evidence else "insufficient_observations",
+        "limitations": "Motion and sound do not identify a hazard or person. Sensor samples may be noisy or unrelated. Follow official emergency guidance; this function does not contact responders or trigger automated actions.",
+    }
+
+
 def system_diagnostics():
     """Read-only host health summary."""
     import psutil

@@ -3,22 +3,21 @@
 JARVIS uses Ollama for local chat and screen analysis, SQLite conversation history, optional Whisper voice input, and approval-gated Windows UI controls. Prompts and screenshots are sent only to the local Ollama server configured on loopback.
 
 ## Install
-1. Install the latest Ollama for Windows from [ollama.com/download](https://ollama.com/download). Use Ollama 0.7.0 or newer for the vision model.
-2. Double-click `SETUP.bat`.
-3. Setup offers separate opt-in pulls for the chat and vision models. Both require several GB of disk space; the vision model is about 6 GB.
-4. Choose `Y` to install optional voice/wake-word and desktop-control packages when prompted.
-5. Choose `Y` at the optional face-detection prompt to install OpenCV.
-6. Setup launches JARVIS. Later, use `LAUNCH.bat`.
+1. Install Python 3.11 or 3.12 for Windows.
+2. Run `SETUP.bat`. It creates the virtual environment and installs the base, voice, desktop-control, face-recognition, and gesture dependencies.
+3. The setup flow clears the existing JARVIS face-enrollment files and starts a fresh Owner enrollment. This is destructive to previous local face profiles; do not run setup again unless you intend to re-enroll.
+4. Install Android Platform-Tools if you want phone integration; see the Android section below.
+5. Install Ollama if you want the default compatibility backend, or configure the optional in-process GGUF backend described below.
+6. Later, start JARVIS with `LAUNCH.bat`.
 
-If you skip the model pulls, run these commands manually:
+The current setup script does not download a chat or vision model automatically. For the default Ollama backend, install the model named in `OLLAMA_MODEL` and optionally pull the vision model:
 
 ```powershell
-ollama run hf.co/mradermacher/Qwen2.5-7B-Instruct-abliterated-GGUF:Q4_K_M
+ollama pull hf.co/mradermacher/Qwen2.5-7B-Instruct-abliterated-GGUF:Q4_K_M
 ollama pull qwen2.5vl:7b
 ```
 
-The chat model is the Q4_K_M GGUF quantization of `huihui-ai/Qwen2.5-7B-Instruct-abliterated`; it is about 4.8 GB. `ollama run` opens an interactive prompt after downloading it; enter `/bye` to return to PowerShell. Setup's opt-in pull avoids opening that prompt.
-The chat model runs through Ollama's local OpenAI-compatible API. The vision model is a separate local model because the chat model does not accept images.
+The chat model runs through Ollama's local OpenAI-compatible API. The vision model is separate because the chat model does not accept images. For a standalone read-only health check, run `.venv\\Scripts\\python.exe src\\doctor.py`; use `--json` for machine-readable output.
 
 ## Settings
 
@@ -39,6 +38,8 @@ JARVIS_AWARENESS_INTERVAL=8
 
 `OLLAMA_BASE_URL` is restricted to localhost so prompts and screenshots are not sent to a remote endpoint. Increase `OLLAMA_REQUEST_TIMEOUT` between 30 and 1800 seconds if model inference is slow.
 
+See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) for a candid feature-by-feature distinction between source code, automated tests, and real-device validation.
+
 ## Custom lightweight intelligence and PC awareness
 
 JARVIS now includes a small, locally trained Naive Bayes intent model (`src/intent_engine.py`). It classifies common request categories using a bundled seed set and approved examples stored in the existing local SQLite database. It provides a weak routing hint to the assistant; it is not a general-purpose LLM and does not execute actions. Teach it with an explicit request such as “learn that ‘check my laptop resources’ is a system request”; JARVIS asks for approval before saving the example.
@@ -46,6 +47,16 @@ JARVIS now includes a small, locally trained Naive Bayes intent model (`src/inte
 A lightweight background monitor (`src/awareness.py`) samples CPU, memory, and process starts locally. It reports high resource usage and newly observed processes in the HUD. Process names are observations, not malware verdicts. It does not capture screenshots, keystrokes, microphone audio, or camera frames, and it does not kill processes or remediate threats. Configure `JARVIS_AWARENESS_INTERVAL` (seconds; minimum 3, default 8) in `.env`.
 
 The custom intent model is the first JARVIS-owned AI component. Complex open-ended reasoning and vision still use the existing optional local Ollama models.
+
+### Measure actual RAM use on your PC
+
+Start JARVIS normally, then open a second PowerShell window in the project folder and run:
+
+```powershell
+.venv\\Scripts\\python.exe src\\resource_benchmark.py --duration 60
+```
+
+Repeat while testing idle, voice, face recognition, gestures, screen analysis, and chat. Use `--json` to retain per-sample readings. The report separates JARVIS and Ollama; with the in-process GGUF backend, the model is part of JARVIS RSS. This is a measurement tool, not a 2 GB guarantee.
 
 ## 16 GB RAM, CPU-only JARVIS model profile
 
@@ -62,7 +73,7 @@ JARVIS_GPU_LAYERS=0
 JARVIS_MAX_TOKENS=768
 ```
 
-Use a 4-bit quantized GGUF for inference. Keep context at 3072 initially and leave several GB of RAM for Windows, the HUD, voice, memory, and other applications. If the PC starts paging or becoming unresponsive, lower context to 2048 or use a smaller 1.7B Q4 model. CPU speed depends heavily on processor generation, memory bandwidth, and cooling; no fixed tokens-per-second figure is guaranteed. The model is loaded lazily on the first chat request. `JARVIS_LLM_BACKEND=auto` uses the GGUF file when the configured path exists, otherwise it falls back to Ollama for compatibility. Set it to `llama_cpp` to require the direct local backend and fail clearly instead of silently using Ollama.
+Install the optional backend with `.venv\\Scripts\\python.exe -m pip install -r requirements-llm.txt`, then place the GGUF file at the configured path. Use a 4-bit quantized GGUF for inference. Keep context at 3072 initially and leave several GB of RAM for Windows, the HUD, voice, memory, and other applications. If the PC starts paging or becoming unresponsive, lower context to 2048 or use a smaller 1.7B Q4 model. CPU speed depends heavily on processor generation, memory bandwidth, and cooling; no fixed tokens-per-second figure is guaranteed. The model is loaded lazily on the first chat request. `JARVIS_LLM_BACKEND=auto` uses the GGUF file when the configured path exists, otherwise it falls back to Ollama for compatibility. Set it to `llama_cpp` to require the direct local backend and fail clearly instead of silently using Ollama.
 
 Install the optional runtime in the project virtual environment:
 
@@ -193,6 +204,9 @@ Set JARVIS_PUBLIC_ALERT_FEEDS in .env to semicolon-separated official HTTPS RSS/
 
 
 ## F.R.I.D.A.Y.-inspired mode (lightweight, no second AI model)
+E.V. camera-motion and acoustic-level outputs can also be combined by the F.R.I.D.A.Y. `friday_fuse_environmental_observations` tool. It accepts previously collected observations and optional user-reported safety signals, then reports whether multiple independent sources were observed. Motion and sound alone never identify a person or establish an emergency; the result is advisory only and does not contact responders.
+
+
 
 F.R.I.D.A.Y.-style analysis is integrated into JARVIS as optional, on-demand tools. It reuses the existing local assistant and standard Python/psutil functionality; no additional language model is loaded.
 
@@ -223,6 +237,9 @@ Routing is advisory and intentionally simple. If a request is ambiguous, JARVIS 
 
 
 ## ULTRON-inspired subsystem (safe implementation)
+ULTRON can now save advisory plans to `data/ultron_plans.json`, list saved plans, and track each step as pending/in progress/completed/blocked. Saving and progress changes require user approval. These are local review records only: JARVIS does not execute the plan steps in the background.
+
+
 
 The ULTRON-inspired layer is integrated as a capability module under JARVIS, not as a second model or an autonomous agent.
 
@@ -241,6 +258,16 @@ Tools: `ultron_capability_report`, `ultron_strategic_plan`, `ultron_review_impro
 No self-replication, unauthorized infiltration, weapon control, automatic source rewriting, or unattended physical robotics is included.
 
 
+## MORPHEUS local file and process triage
+
+MORPHEUS includes two additional read-only investigation tools:
+
+- `security_triage_file` hashes a selected file with SHA-256, checks basic file-header/extension consistency, reads the Windows download-zone marker, and checks Authenticode signature status when available.
+- `security_defender_scan_file` runs an explicitly approved Microsoft Defender custom scan on one file. Defender may quarantine/remove a detection according to its existing policy; JARVIS does not change Defender settings.
+- `security_process_snapshot` reports processes whose executable paths are in common user-writable folders.
+
+The PC awareness loop also reports newly observed process images launched from common temporary/download folders, with a cooldown. These are weak indicators for human review, not malware verdicts. Files are never executed, uploaded, modified, deleted, or quarantined by these tools; processes are never stopped. This is not a replacement for Microsoft Defender or a production EDR product.
+
 ## MORPHEUS authorized real-device assessment
 
 MORPHEUS includes an approval-gated private-network inventory tool for devices you own or have explicit permission to assess.
@@ -253,12 +280,12 @@ MORPHEUS includes an approval-gated private-network inventory tool for devices y
 
 Example request to JARVIS: “MORPHEUS, inventory my authorized `192.168.1.0/28` lab subnet on the default safe ports.” Use only a subnet assigned to your own lab or explicitly approved by its owner. Never scan public networks or third-party devices without written authorization.
 
-All subsystems remain in one JARVIS process and share the existing local model and approval flow. Face authentication is preserved. The 2 GB goal refers to the assistant's non-model overhead; the total RAM footprint also includes the chosen local LLM and optional voice/vision packages.
+All subsystems remain in one JARVIS process and share the existing local model and approval flow. Face authentication is preserved. The 2 GB goal refers to the assistant's non-model overhead; it is not yet a verified benchmark. The HUD now reports the JARVIS process working set, but when llama.cpp runs in-process that number includes model memory; with Ollama, the model memory belongs to the separate Ollama process. Optional voice/vision packages and camera inference can also raise peak memory.
 
 
 ## Android multi-device bridge (local ADB)
 
-JARVIS can list Android devices connected over USB or already paired through Android Wireless Debugging, wake selected displays, and launch allowlisted apps on multiple phones in parallel.
+JARVIS can list Android devices connected over USB or already paired through Android Wireless Debugging, wake selected displays, and launch allowlisted apps on multiple phones in parallel. The HUD includes an Android panel: refresh the device list, multi-select authorized phones, choose an allowlisted app, and launch it or wake the selected displays. Every action is confirmed before it runs; the panel does not unlock phones.
 
 ### Setup
 1. Install the official [Android SDK Platform-Tools](https://developer.android.com/tools/releases/platform-tools).

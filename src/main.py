@@ -148,6 +148,77 @@ class Controller:
         self._android_watch_thread.start()
         self.hud.root.protocol("WM_DELETE_WINDOW", self.shutdown)
 
+    def refresh_android_devices(self):
+        if self._shutting_down:
+            return
+
+        def worker():
+            try:
+                from android_bridge import list_android_devices
+                result = list_android_devices()
+                self.hud.dispatch(self.hud.set_android_devices, result)
+            except Exception as exc:
+                LOG.info("Android device refresh unavailable: %s", exc)
+                self.hud.dispatch(self.hud.add, "ANDROID", f"Device refresh failed: {exc}")
+        threading.Thread(target=worker, name="JARVIS-Android-Refresh", daemon=True).start()
+
+    def launch_android_selected(self, serials, app):
+        if self._shutting_down:
+            return
+        description = (
+            f"Launch the allowlisted Android app '{app}' on these selected, "
+            f"currently authorized devices?\n" + "\n".join(str(s) for s in serials)
+        )
+        if not self.hud.confirm_action(description):
+            self.hud.add("ANDROID", "App launch cancelled.")
+            return
+
+        def worker():
+            try:
+                from android_bridge import launch_android_app
+                result = launch_android_app(serials, app)
+                lines = [
+                    f"{item.get('serial')}: {'OK' if item.get('ok') else 'FAILED'}"
+                    + (f" — {item.get('error')}" if item.get('error') else "")
+                    for item in result.get("results", [])
+                ]
+                summary = f"{app} launch: " + ("complete" if result.get("ok") else "partial/failure")
+                self.hud.dispatch(self.hud.add, "ANDROID", summary + ("\n" + "\n".join(lines) if lines else ""))
+                self.hud.dispatch(self.hud.set_status, "ONLINE • READY")
+            except Exception as exc:
+                LOG.exception("Android app launch failed")
+                self.hud.dispatch(self.hud.add, "ERROR", f"Android launch failed: {exc}")
+        threading.Thread(target=worker, name="JARVIS-Android-Launch", daemon=True).start()
+
+    def wake_android_selected(self, serials):
+        if self._shutting_down:
+            return
+        description = (
+            "Wake the displays on these selected, currently authorized Android devices? "
+            "This does not unlock phones.\n" + "\n".join(str(s) for s in serials)
+        )
+        if not self.hud.confirm_action(description):
+            self.hud.add("ANDROID", "Display wake cancelled.")
+            return
+
+        def worker():
+            try:
+                from android_bridge import wake_android_displays
+                result = wake_android_displays(serials)
+                lines = [
+                    f"{item.get('serial')}: {'OK' if item.get('ok') else 'FAILED'}"
+                    + (f" — {item.get('error')}" if item.get('error') else "")
+                    for item in result.get("results", [])
+                ]
+                self.hud.dispatch(self.hud.add, "ANDROID", "Display wake " +
+                                  ("complete" if result.get("ok") else "partial/failure") +
+                                  ("\n" + "\n".join(lines) if lines else ""))
+                self.hud.dispatch(self.hud.set_status, "ONLINE • READY")
+            except Exception as exc:
+                LOG.exception("Android display wake failed")
+                self.hud.dispatch(self.hud.add, "ERROR", f"Android wake failed: {exc}")
+        threading.Thread(target=worker, name="JARVIS-Android-Wake", daemon=True).start()
+
     def _android_watch_loop(self):
         previous = {}
         adb_warning_shown = False
@@ -166,6 +237,8 @@ class Controller:
                     for item in result.get("devices", [])
                     if item.get("state") in {"device", "unauthorized", "offline"}
                 }
+                if current != previous:
+                    self.hud.dispatch(self.hud.set_android_devices, result)
                 wireless_reconnect_counter += 1
                 if wireless_reconnect_counter >= 6:
                     wireless_reconnect_counter = 0
@@ -669,9 +742,13 @@ def main():
             lambda enabled: holder["controller"].toggle_wake(enabled),
             lambda enabled: holder["controller"].toggle_face_detection(enabled),
             lambda enabled: holder["controller"].toggle_gestures(enabled),
+            lambda: holder["controller"].refresh_android_devices(),
+            lambda serials, app: holder["controller"].launch_android_selected(serials, app),
+            lambda serials: holder["controller"].wake_android_selected(serials),
         )
         controller = Controller(hud)
         holder["controller"] = controller
+        controller.refresh_android_devices()
         hud.run()
     except Exception as exc:
         LOG.exception("HUD unavailable")

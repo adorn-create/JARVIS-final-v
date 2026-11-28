@@ -304,6 +304,30 @@ TOOL_DEFINITIONS = [
     {
         "type": "function",
         "function": {
+            "name": "security_defender_scan_file",
+            "description": "Run a Microsoft Defender custom scan on one selected local file. Requires explicit approval. Defender's configured policy may quarantine or remove a detected threat; JARVIS does not alter Defender settings. Review Windows Security Protection History afterward.",
+            "parameters": {"type": "object", "properties": {"file_path": {"type": "string"}}, "required": ["file_path"], "additionalProperties": False},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "security_triage_file",
+            "description": "Perform read-only local triage of one user-selected file: SHA-256, file header, extension indicators, Windows download-zone marker, and Authenticode signature where available. Never executes, uploads, modifies, deletes, or quarantines the file. This is not a malware verdict and requires user approval.",
+            "parameters": {"type": "object", "properties": {"file_path": {"type": "string"}}, "required": ["file_path"], "additionalProperties": False},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "security_process_snapshot",
+            "description": "Read-only snapshot of running processes using conservative path-based indicators for processes launched from common user-writable folders. Reports leads only; does not terminate, suspend, or modify processes. Requires user approval.",
+            "parameters": {"type": "object", "properties": {"limit": {"type": "integer", "minimum": 1, "maximum": 200}}, "additionalProperties": False},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "security_host_audit",
             "description": "Read the local Windows Defender and Windows Firewall status. Read-only; does not change security settings.",
             "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
@@ -660,6 +684,18 @@ TOOL_DEFINITIONS = [
     {
         "type": "function",
         "function": {
+            "name": "friday_fuse_environmental_observations",
+            "description": "Combine already-collected, opt-in E.V. camera-motion and microphone-level observations with explicitly user-reported safety signals. Returns cautious corroboration and advisory guidance only; it does not identify people, declare an emergency from sensors, or contact responders.",
+            "parameters": {"type": "object", "properties": {
+                "camera_motion_detected": {"type": "boolean"},
+                "acoustic_classification": {"type": "string", "enum": ["not_sampled", "quiet", "moderate ambient sound", "loud or sustained ambient sound", "strong transient or very loud sound"]},
+                "reported_signals": {"type": "array", "items": {"type": "string", "enum": ["smoke", "fire", "gas_smell", "vehicle_approaching", "fall_or_injury", "loud_impact", "power_outage"]}, "maxItems": 10}
+            }, "additionalProperties": False}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "friday_track_target_motion",
             "description": "Analyze 2D position samples for one anonymous moving object, estimate direction/speed, and extrapolate its near-term position. No identity recognition, weapon targeting, or action control.",
             "parameters": {"type": "object", "properties": {
@@ -728,6 +764,34 @@ TOOL_DEFINITIONS = [
         }
     },
 
+    {
+        "type": "function",
+        "function": {
+            "name": "ultron_save_strategy_plan",
+            "description": "Save a reviewable advisory plan to local project data after explicit user approval. Steps are not executed automatically.",
+            "parameters": {"type": "object", "properties": {"goal": {"type": "string", "maxLength": 500}}, "required": ["goal"], "additionalProperties": False}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "ultron_list_saved_plans",
+            "description": "List locally saved ULTRON advisory plans and their manual progress states. Read-only; does not execute tasks.",
+            "parameters": {"type": "object", "properties": {}, "additionalProperties": False}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "ultron_update_plan_step",
+            "description": "Manually update the review status of one saved plan step. Requires approval. This only changes local progress metadata and never executes the step.",
+            "parameters": {"type": "object", "properties": {
+                "plan_id": {"type": "string", "maxLength": 32},
+                "step_index": {"type": "integer", "minimum": 0, "maximum": 20},
+                "status": {"type": "string", "enum": ["pending", "in_progress", "completed", "blocked"]}
+            }, "required": ["plan_id", "step_index", "status"], "additionalProperties": False}
+        }
+    },
     {
         "type": "function",
         "function": {
@@ -917,6 +981,39 @@ def execute(name, args, confirm=None, progress=None):
         if not _confirm_action(confirm, f"Add this training example to JARVIS's local intent model?\\n\\nCategory: {label}\\nPhrase: {phrase}"):
             return {"ok": False, "error": "User did not approve model training."}
         return learn(phrase, label)
+    if name == "security_defender_scan_file":
+        from morpheus_monitor import scan_with_windows_defender
+        file_path = str(args.get("file_path", "")).strip()
+        if not _confirm_action(
+            confirm,
+            "Run a Microsoft Defender custom scan on this file?\n\n"
+            + file_path
+            + "\nIMPORTANT: Defender's existing policy may quarantine or remove a detected threat. "
+            "JARVIS will not change Defender settings."
+        ):
+            return {"ok": False, "error": "User did not approve the Microsoft Defender scan."}
+        return scan_with_windows_defender(file_path)
+    if name == "security_triage_file":
+        from morpheus_monitor import triage_file
+        file_path = str(args.get("file_path", "")).strip()
+        if not _confirm_action(
+            confirm,
+            "Inspect this selected local file using read-only hashing, metadata and signature checks?\n\n"
+            + file_path
+            + "\nThe file will not be executed, uploaded, modified, deleted, or quarantined."
+        ):
+            return {"ok": False, "error": "User did not approve file triage."}
+        return triage_file(file_path)
+    if name == "security_process_snapshot":
+        from morpheus_monitor import process_snapshot
+        limit = args.get("limit", 100)
+        if not _confirm_action(
+            confirm,
+            "Read a local snapshot of running process paths and report basic heuristic indicators? "
+            "No process will be stopped or modified."
+        ):
+            return {"ok": False, "error": "User did not approve process snapshot."}
+        return process_snapshot(limit=limit)
     if name == "security_host_audit":
         from security_engine import audit_windows_security
         return audit_windows_security()
@@ -1011,6 +1108,13 @@ def execute(name, args, confirm=None, progress=None):
         return analyze_project_file(relative_path)
 
 
+    if name == "friday_fuse_environmental_observations":
+        from friday_features import fuse_environmental_observations
+        return fuse_environmental_observations(
+            camera_motion_detected=args.get("camera_motion_detected", False),
+            acoustic_classification=args.get("acoustic_classification", "not_sampled"),
+            reported_signals=args.get("reported_signals", []),
+        )
     if name == "friday_track_target_motion":
         from friday_features import analyze_movement
         return analyze_movement(args.get("samples", []), args.get("horizon_seconds", 1.0))
@@ -1047,6 +1151,23 @@ def execute(name, args, confirm=None, progress=None):
         return {"ok": True, "displayed_in_local_hud": bool(progress), "title": title, "message": message,
                 "note": "Local JARVIS HUD only; no external communication was sent."}
 
+    if name == "ultron_save_strategy_plan":
+        from ultron_features import save_strategy_plan
+        goal = str(args.get("goal", "")).strip()
+        if not _confirm_action(confirm, "Save this ULTRON advisory plan locally for later review? No steps will execute.\n\n" + goal):
+            return {"ok": False, "error": "User did not approve saving the ULTRON plan."}
+        return save_strategy_plan(goal)
+    if name == "ultron_list_saved_plans":
+        from ultron_features import list_saved_plans
+        return list_saved_plans()
+    if name == "ultron_update_plan_step":
+        from ultron_features import update_saved_plan_step
+        plan_id = str(args.get("plan_id", "")).strip()
+        step_index = args.get("step_index")
+        status = str(args.get("status", "")).strip()
+        if not _confirm_action(confirm, f"Update ULTRON plan {plan_id}, step {step_index}, to '{status}'? This changes progress metadata only; it does not run the step."):
+            return {"ok": False, "error": "User did not approve the ULTRON plan progress update."}
+        return update_saved_plan_step(plan_id, step_index, status)
     if name == "ultron_capability_report":
         from ultron_features import capability_report
         return capability_report()

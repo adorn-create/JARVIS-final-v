@@ -32,9 +32,16 @@ class HUD:
         on_toggle_wake,
         on_toggle_face,
         on_toggle_gestures,
+        on_android_refresh=None,
+        on_android_launch=None,
+        on_android_wake=None,
     ):
         self._tk_thread = threading.current_thread()
         self.on_send = on_send
+        self.on_android_refresh = on_android_refresh or (lambda: None)
+        self.on_android_launch = on_android_launch or (lambda _serials, _app: None)
+        self.on_android_wake = on_android_wake or (lambda _serials: None)
+        self._android_serials = []
         self._phase = 0
         self._mic_level = 0.0
         self._wake_enabled = False
@@ -52,6 +59,7 @@ class HUD:
         self._build_dashboard()
         self._build_activity()
         self._build_controls()
+        self._build_android_panel()
         self.add("JARVIS", "Interface online. All existing systems are standing by.")
         self._animate()
         self._refresh_metrics()
@@ -166,7 +174,7 @@ class HUD:
         right_outer, right = self._panel(dashboard, "Live telemetry")
         right_outer.grid(row=0, column=2, sticky="nsew", padx=(8, 0))
         self._metric_bars = {}
-        for key, label in (("cpu", "CPU LOAD"), ("ram", "MEMORY"), ("disk", "SYSTEM DRIVE")):
+        for key, label in (("cpu", "CPU LOAD"), ("ram", "SYSTEM MEMORY"), ("disk", "SYSTEM DRIVE"), ("process", "JARVIS PROCESS RAM")):
             tk.Label(
                 right, text=label, bg=PANEL, fg=TEXT,
                 font=("Consolas", 8, "bold"), anchor="w"
@@ -202,7 +210,7 @@ class HUD:
         canvas = self.core_canvas
         width = max(canvas.winfo_width(), 260)
         height = max(canvas.winfo_height(), 260)
-        scale = 3
+        scale = 2
         image = Image.new("RGBA", (width * scale, height * scale), PANEL)
         draw = ImageDraw.Draw(image)
         cx, cy = width * scale / 2, height * scale / 2
@@ -299,6 +307,104 @@ class HUD:
             action_row, "GESTURES: OFF",
             lambda: self.on_toggle_gestures(not self._gestures_enabled)
         )
+
+ 
+    def _build_android_panel(self):
+        outer, inner = self._panel(self.root, "Android multi-device control")
+        outer.pack(fill="x", padx=22, pady=(0, 12))
+        header = tk.Frame(inner, bg=PANEL)
+        header.pack(fill="x")
+        self.android_status = tk.Label(
+            header, text="ADB DEVICES • PRESS REFRESH", bg=PANEL, fg=MUTED,
+            font=("Consolas", 8), anchor="w"
+        )
+        self.android_status.pack(side="left", fill="x", expand=True)
+        tk.Button(
+            header, text="REFRESH", command=self.on_android_refresh,
+            bg=PANEL_ALT, fg=CYAN, activebackground=CYAN,
+            activeforeground=BG, bd=0, padx=12, pady=6,
+            font=("Segoe UI", 8, "bold"), cursor="hand2"
+        ).pack(side="right")
+        body = tk.Frame(inner, bg=PANEL)
+        body.pack(fill="x", pady=(8, 0))
+        list_frame = tk.Frame(body, bg=PANEL)
+        list_frame.pack(side="left", fill="both", expand=True)
+        self.android_listbox = tk.Listbox(
+            list_frame, selectmode=tk.EXTENDED, height=4,
+            bg=PANEL_ALT, fg=TEXT, selectbackground=CYAN_DIM,
+            selectforeground=BG, bd=0, highlightthickness=0,
+            font=("Consolas", 9), exportselection=False
+        )
+        self.android_listbox.pack(side="left", fill="both", expand=True)
+        scroll = tk.Scrollbar(list_frame, orient="vertical", command=self.android_listbox.yview)
+        scroll.pack(side="right", fill="y")
+        self.android_listbox.configure(yscrollcommand=scroll.set)
+        actions = tk.Frame(body, bg=PANEL)
+        actions.pack(side="right", padx=(12, 0), fill="y")
+        self.android_app = tk.StringVar(value="youtube")
+        tk.Label(actions, text="APP", bg=PANEL, fg=MUTED, font=("Consolas", 8)).pack(anchor="w")
+        tk.OptionMenu(
+            actions, self.android_app,
+            "youtube", "chrome", "maps", "whatsapp", "spotify",
+            "gmail", "settings", "camera", "photos"
+        ).pack(fill="x", pady=(2, 6))
+        for label, command in (
+            ("LAUNCH ON SELECTED", self._launch_android_selected),
+            ("WAKE SELECTED", self._wake_android_selected),
+        ):
+            tk.Button(
+                actions, text=label, command=command,
+                bg=PANEL_ALT, fg=CYAN, activebackground=CYAN,
+                activeforeground=BG, bd=0, padx=8, pady=8,
+                font=("Segoe UI", 8, "bold"), cursor="hand2"
+            ).pack(fill="x", pady=3)
+        tk.Label(
+            inner,
+            text="Select one or more authorized phones. Every launch/wake action asks for approval. Lock screens are never bypassed.",
+            bg=PANEL, fg=MUTED, font=("Segoe UI", 8), anchor="w", wraplength=1100
+        ).pack(fill="x", pady=(8, 0))
+
+    def _selected_android_serials(self):
+        return [
+            self._android_serials[index]
+            for index in self.android_listbox.curselection()
+            if 0 <= index < len(self._android_serials)
+        ]
+
+    def _launch_android_selected(self):
+        serials = self._selected_android_serials()
+        if not serials:
+            self.android_status.configure(text="Select at least one authorized Android device.")
+            return
+        self.on_android_launch(serials, self.android_app.get())
+
+    def _wake_android_selected(self):
+        serials = self._selected_android_serials()
+        if not serials:
+            self.android_status.configure(text="Select at least one authorized Android device.")
+            return
+        self.on_android_wake(serials)
+
+    def set_android_devices(self, result):
+        devices = result.get("devices", []) if isinstance(result, dict) else []
+        ready = [item for item in devices if item.get("state") == "device"]
+        self.android_listbox.delete(0, "end")
+        self._android_serials = []
+        for item in ready:
+            alias = item.get("alias") or item.get("model") or item.get("device") or "Android"
+            serial = item.get("serial", "")
+            self.android_listbox.insert("end", f"{alias}  |  {serial}")
+            self._android_serials.append(serial)
+        other = [
+            f"{item.get('model') or item.get('device') or item.get('serial')}: {item.get('state')}"
+            for item in devices if item.get("state") != "device"
+        ]
+        self.android_status.configure(
+            text=f"AUTHORIZED • {len(ready)}    OTHER STATES • {len(other)}"
+            + (("    " + "; ".join(other[:3])) if other else "")
+        )
+        if not devices:
+            self.android_status.configure(text="NO ADB DEVICES • Connect USB or pair Wireless Debugging.")
 
     def _clear_entry_placeholder(self, _event=None):
         if self.entry.get() == self._entry_placeholder:
@@ -464,7 +570,8 @@ class HUD:
         self.reactor.itemconfigure("pulse", start=self._phase)
         if hasattr(self, "core_canvas"):
             self._draw_core()
-        self.root.after(55, self._animate)
+        # 10 FPS keeps the HUD smooth while reducing continuous CPU work.
+        self.root.after(100, self._animate)
 
     def _set_bar(self, key, value):
         canvas, item = self._metric_bars[key]
@@ -486,6 +593,11 @@ class HUD:
             self._set_bar("cpu", cpu)
             self._set_bar("ram", ram)
             self._set_bar("disk", disk)
+            process_gb = psutil.Process(os.getpid()).memory_info().rss / (1024 ** 3)
+            self._set_bar("process", min(100.0, process_gb / 2.0 * 100.0))
+            self.metrics.configure(
+                text=f"CPU {cpu:.0f}%   RAM {ram:.0f}%   DISK {disk:.0f}%   JARVIS {process_gb:.2f} GB"
+            )
         except Exception as exc:
             self.metrics.configure(text=f"TELEMETRY ERROR: {exc}")
         self.root.after(2000, self._refresh_metrics)
