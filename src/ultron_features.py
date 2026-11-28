@@ -4,6 +4,12 @@ This module deliberately has no network client, shell execution, self-replicatio
 code rewriting, device driver, or physical actuator.
 """
 import re
+import json
+import os
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+
 import psutil
 
 
@@ -62,6 +68,107 @@ def strategic_plan(goal):
             {"step": "Verify outcomes and report unresolved risks", "approval": "none for read-only verification"},
         ],
         "safety": "Planning only; this function does not execute commands, access devices, or contact external systems.",
+    }
+
+
+def _plan_store_path():
+    root = Path(__file__).resolve().parents[1]
+    data_dir = root / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    return data_dir / "ultron_plans.json"
+
+
+def _load_saved_plans():
+    path = _plan_store_path()
+    if not path.exists():
+        return []
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"Could not read ULTRON plan store: {exc}") from exc
+    if not isinstance(payload, list):
+        raise RuntimeError("ULTRON plan store has an invalid format.")
+    return payload[-50:]
+
+
+def _write_saved_plans(plans):
+    path = _plan_store_path()
+    temporary = path.with_suffix(".json.tmp")
+    temporary.write_text(json.dumps(plans[-50:], ensure_ascii=False, indent=2), encoding="utf-8")
+    os.replace(temporary, path)
+
+
+def save_strategy_plan(goal):
+    """Persist an explicitly requested advisory plan; no steps are executed."""
+    result = strategic_plan(goal)
+    plans = _load_saved_plans()
+    item = {
+        "plan_id": uuid.uuid4().hex[:12],
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "goal": result["goal"],
+        "status": "proposed",
+        "steps": [
+            {**step, "status": "pending"}
+            for step in result["plan"]
+        ],
+        "safety": result["safety"],
+    }
+    plans.append(item)
+    _write_saved_plans(plans)
+    return {
+        "ok": True,
+        "saved_plan": item,
+        "storage": "local project data/ultron_plans.json",
+        "note": "Saved for review only. ULTRON does not execute plan steps automatically.",
+    }
+
+
+def list_saved_plans():
+    plans = _load_saved_plans()
+    return {
+        "ok": True,
+        "count": len(plans),
+        "plans": [
+            {
+                "plan_id": item.get("plan_id"),
+                "created_at": item.get("created_at"),
+                "goal": item.get("goal"),
+                "status": item.get("status"),
+                "completed_steps": sum(1 for step in item.get("steps", []) if step.get("status") == "completed"),
+                "total_steps": len(item.get("steps", [])),
+            }
+            for item in plans
+        ],
+        "note": "Local advisory plan history only; no background execution.",
+    }
+
+
+def update_saved_plan_step(plan_id, step_index, status):
+    """Manually update review progress; this does not execute the selected step."""
+    plan_id = str(plan_id or "").strip()
+    try:
+        step_index = int(step_index)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("step_index must be an integer.") from exc
+    status = str(status or "").strip().lower()
+    if status not in {"pending", "in_progress", "completed", "blocked"}:
+        raise ValueError("status must be pending, in_progress, completed, or blocked.")
+    plans = _load_saved_plans()
+    item = next((entry for entry in plans if entry.get("plan_id") == plan_id), None)
+    if item is None:
+        raise ValueError("Saved ULTRON plan was not found.")
+    if not 0 <= step_index < len(item.get("steps", [])):
+        raise ValueError("step_index is outside the saved plan.")
+    item["steps"][step_index]["status"] = status
+    statuses = [step.get("status") for step in item.get("steps", [])]
+    item["status"] = "completed" if statuses and all(value == "completed" for value in statuses) else "in_progress"
+    if "blocked" in statuses:
+        item["status"] = "blocked"
+    _write_saved_plans(plans)
+    return {
+        "ok": True, "plan_id": plan_id, "step_index": step_index,
+        "step_status": status, "plan_status": item["status"],
+        "note": "Progress metadata updated only; no task or command was executed.",
     }
 
 
