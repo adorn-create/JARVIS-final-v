@@ -801,6 +801,15 @@ TOOL_DEFINITIONS = [
             "parameters": {"type": "object", "properties": {"address": {"type": "string"}, "pairing_code": {"type": "string", "pattern": "^[0-9]{6}$"}}, "required": ["address", "pairing_code"], "additionalProperties": False}
         }
     },
+
+    {
+        "type": "function",
+        "function": {
+            "name": "android_connect_wireless_device",
+            "description": "Connect to the separate private-LAN ADB endpoint shown on an owner-controlled Android phone's Wireless Debugging screen after pairing. Requires explicit user approval.",
+            "parameters": {"type": "object", "properties": {"address": {"type": "string"}}, "required": ["address"], "additionalProperties": False}
+        }
+    },
 ]
 
 
@@ -829,6 +838,14 @@ def execute(name, args, confirm=None, progress=None):
         if not _confirm_action(confirm, "Pair JARVIS with this owner-controlled Android Wireless Debugging endpoint? The six-digit pairing code is used once and is not stored.\\n\\n" + address):
             return {"ok": False, "error": "User did not approve Android wireless pairing."}
         return pair_wireless_android_device(address, code)
+
+
+    if name == "android_connect_wireless_device":
+        from android_bridge import connect_wireless_android_device
+        address = str(args.get("address", "")).strip()
+        if not _confirm_action(confirm, "Connect to this private-LAN Android Wireless Debugging endpoint?\\n\\n" + address):
+            return {"ok": False, "error": "User did not approve the wireless ADB connection."}
+        return connect_wireless_android_device(address)
 
     if name == "system_status":
         return system_status()
