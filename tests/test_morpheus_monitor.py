@@ -18,7 +18,8 @@ class MorpheusMonitorTests(unittest.TestCase):
             before = path.read_bytes()
             with patch.object(morpheus_monitor, "_file_signature", return_value={"status": "Valid", "signer": "Test"}):
                 result = morpheus_monitor.triage_file(str(path))
-            self.assertEqual(result["sha256"], "")
+            self.assertEqual(len(result["sha256"]), 64)
+            self.assertEqual(result["sha256"], __import__("hashlib").sha256(before).hexdigest())
             self.assertEqual(path.read_bytes(), before)
             self.assertEqual(result["mode"], "read-only static triage")
 
