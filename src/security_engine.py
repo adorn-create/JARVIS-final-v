@@ -384,3 +384,48 @@ def scan_private_https_tls(url: str, timeout: float = 5.0) -> dict:
         "note": "This is a TLS configuration snapshot, not a full cipher-suite or vulnerability assessment. No HTTP request or exploit payload was sent.",
     }
 
+
+
+
+def scan_authorized_subnet(cidr: str, ports=None, timeout: float = 0.25) -> dict:
+    """Inventory up to 14 explicitly authorized private IPv4 hosts using TCP connect-only checks.
+
+    Accepts only private IPv4 networks no larger than /28. No host discovery
+    packets, service banners, authentication, exploit payloads, or remediation.
+    """
+    try:
+        network = ipaddress.ip_network(str(cidr).strip(), strict=False)
+    except ValueError as exc:
+        raise ValueError("Provide a valid private IPv4 subnet in CIDR notation.") from exc
+    if not isinstance(network, ipaddress.IPv4Network) or not network.is_private:
+        raise ValueError("Only private IPv4 subnets are accepted.")
+    if network.prefixlen < 28:
+        raise ValueError("Network inventory is capped at 14 usable hosts; use a /28 or smaller subnet.")
+    if network.is_multicast or network.is_unspecified or network.is_reserved:
+        raise ValueError("This network range is not allowed.")
+    selected = normalize_ports(ports)
+    timeout = max(0.15, min(float(timeout), 0.5))
+    hosts = list(network.hosts())
+    if len(hosts) > 14:
+        raise ValueError("Network inventory is capped at 14 hosts.")
+    devices = []
+    for address in hosts:
+        open_ports = []
+        for port in selected:
+            try:
+                with socket.create_connection((str(address), port), timeout=timeout):
+                    open_ports.append({"port": port, "service_hint": PORT_LABELS[port]})
+            except (OSError, TimeoutError):
+                pass
+        if open_ports:
+            devices.append({"address": str(address), "open_ports": open_ports})
+        time.sleep(0.01)
+    return {
+        "ok": True,
+        "network": str(network),
+        "hosts_checked": len(hosts),
+        "ports_per_host": len(selected),
+        "devices_with_open_ports": devices,
+        "method": "bounded TCP connect-only inventory; no banners, authentication, exploit payloads, or changes",
+        "limitations": "This is asset/attack-surface discovery, not proof of vulnerabilities or a full penetration test.",
+    }
