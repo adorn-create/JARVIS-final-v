@@ -12,7 +12,7 @@ This file distinguishes code present in the repository from capabilities that ha
 | HUD | Tkinter animated dashboard | Limited | Windows DPI/scaling and long-run performance pending |
 | PC awareness | CPU/RAM/process-start monitor | Limited | Resource overhead benchmark pending |
 | Android | Multi-device ADB, allowlisted launch, approved wireless reconnect | Not yet comprehensive | Multiple physical phones pending |
-| MORPHEUS | Defensive Windows posture, bounded private-host checks, TLS, CVE metadata | Security-engine tests | Authorized lab integration pending |
+| MORPHEUS | Defender/firewall posture, bounded private-host checks, TLS, CVE metadata, read-only file hash/signature triage, process-path review alerts | Security-engine and triage tests | Defender event correlation, malware samples, and lab integration pending |
 | E.V. | On-demand camera/audio/wearable/feed/data tools | Unit tests for selected helpers | Real sensor/feed adapters pending |
 | F.R.I.D.A.Y. | Advisory movement, safety, diagnostics, navigation tools | Unit tests for selected helpers | Sensor fusion not implemented |
 | ULTRON | Planning, review proposals, simulation, resilience checks | Unit tests for selected helpers | Physical robotics/distributed nodes not implemented |
@@ -21,12 +21,18 @@ This file distinguishes code present in the repository from capabilities that ha
 
 - A newly trained multi-billion-parameter foundation model or GPT-6-equivalent local model.
 - A validated 2 GB total-process or total-system memory guarantee.
-- Production-grade EDR, kernel-level monitoring, malware sandboxing, or automatic ransomware containment.
+- Production-grade EDR, kernel-level monitoring, malware sandboxing, automatic ransomware containment, or a validated malware classifier. Current MORPHEUS triage is read-only and heuristic; it is not an antivirus replacement.
 - Face anti-spoofing / liveness detection suitable for protecting sensitive accounts.
 - General-purpose Android UI automation, lock-screen interaction, or automated ADB RSA approval.
-- Automatic wearable discovery, universal sensor fusion, or certified emergency detection.
-- Real robotics, physical fleet actuation, self-replication, or unattended source-code rewriting.
+- Automatic wearable discovery, universal sensor fusion, or certified emergency detection. E.V. and F.R.I.D.A.Y. tools are currently opt-in and advisory; they do not continuously infer or certify emergencies.
+- Real robotics, physical fleet actuation, self-replication, or unattended source-code rewriting. ULTRON planning and fleet actions remain simulations/proposals.
 - Verified cross-platform desktop automation.
+
+## MORPHEUS read-only triage added on the upgrade branch
+
+- `security_triage_file`: hashes one user-selected local file, inspects its header/extension, Windows download-zone marker, and Authenticode signature where available. It never executes, uploads, modifies, deletes, or quarantines the file.
+- `security_process_snapshot`: reports process images in common user-writable locations as review leads only.
+- The low-overhead awareness loop now emits a rate-limited review alert when a newly observed process image launches from common user-writable locations. This is not a malware verdict and does not stop the process.
 
 ## Resource target
 
