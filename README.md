@@ -279,3 +279,38 @@ JARVIS first lists ADB devices and uses their exact serials for later actions. A
 - Wake means display wake only. JARVIS does **not** dismiss the Android lock screen, enter PINs/passwords, bypass authentication, extract phone data, or run arbitrary shell commands.
 - Pairing codes are one-time inputs and are not written to JARVIS logs or configuration.
 - Revoke debugging authorizations in Android Developer Options when no longer needed.
+
+## Android multi-device bridge: first-time setup and reconnect
+
+JARVIS can manage up to 16 owner-authorized Android phones/tablets through Android Platform Tools (ADB). USB and Android Wireless Debugging are supported. The bridge is local and uses an explicit app allowlist.
+
+### First USB connection (one-time approval per PC/phone)
+
+1. On the phone, enable Developer Options, then enable **USB debugging**. Android requires this to be done on the phone; JARVIS cannot safely enable it from an ordinary Windows USB connection.
+2. Connect the phone by USB and unlock its screen.
+3. When Android displays **Allow USB debugging?**, verify the computer/RSA fingerprint and select **Always allow from this computer**, then tap **Allow**.
+4. JARVIS detects the phone and reports its ADB state. Use `android_list_devices` (or ask JARVIS to list Android devices) to verify it shows `device`, not `unauthorized`.
+
+Android Platform Tools/ADB keeps its host key under `%USERPROFILE%\\.android\\adbkey` on Windows. The phone remembers the approved host key. JARVIS does not copy, display, or store that private key, and it never auto-accepts the phone’s RSA prompt. After the one-time approval, reconnecting the same phone to the same Windows user/ADB key normally reconnects without another approval. If authorization is revoked, the ADB key is deleted, or Windows is reinstalled/uses a different user profile, approve the new prompt manually.
+
+### Wireless debugging and remembered reconnect
+
+1. Keep the phone and PC on the same trusted private Wi-Fi network.
+2. On the phone, open Developer Options → Wireless debugging and enable it.
+3. Use **Pair device with pairing code**. Give JARVIS the pairing IP:port and temporary six-digit code for `android_pair_wireless_device`.
+4. Then connect using the separate IP:port shown on the Wireless debugging screen with `android_connect_wireless_device`.
+5. After a successful user-approved connection, JARVIS remembers that private-LAN endpoint locally and checks it periodically to reconnect if the link drops.
+
+Wireless reconnect works only while the remembered IP/port remains valid and Wireless debugging stays enabled. If Android changes the phone IP or debugging port, connect again using the new endpoint. Remove `%LOCALAPPDATA%\\JARVIS\\android_wireless.json` to clear remembered wireless endpoints. JARVIS stores no pairing codes, PINs, passwords, or phone contents.
+
+### Friendly names and supported actions
+
+- Ask JARVIS to list Android devices; each entry includes its model/state and any saved friendly name.
+- Use `android_set_device_alias` to save a short name for a currently visible device (for example, `Work phone`). The mapping is stored in `%LOCALAPPDATA%\\JARVIS\\android_devices.json`.
+- Wake selected displays or launch allowlisted apps (YouTube, Chrome, Maps, WhatsApp, Spotify, Gmail, Settings, Camera, Photos) after the approval prompt.
+- ADB device monitoring starts with JARVIS and checks presence every five seconds. Wireless reconnect checks run about every 30 seconds for endpoints previously approved through the connect action.
+- JARVIS never types lock-screen PINs/passwords, dismisses the lock screen, auto-approves RSA prompts, or runs arbitrary Android shell commands.
+
+### External project reviewed
+
+The project [hectorg2211/jarvis](https://github.com/hectorg2211/jarvis) is a separate desktop **double-clap welcome/launcher** script. It uses microphone clap detection and can launch Spotify, Chrome pages, Cursor, and optional ElevenLabs cloud speech. It is not an Android bridge or a complete JARVIS assistant. Its double-clap trigger is a possible future optional input mode; its cloud ElevenLabs dependency and automatic opening of third-party/trading sites are not imported into this local, approval-gated JARVIS build.
