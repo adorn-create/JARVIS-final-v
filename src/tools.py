@@ -767,6 +767,34 @@ TOOL_DEFINITIONS = [
     {
         "type": "function",
         "function": {
+            "name": "ultron_save_strategy_plan",
+            "description": "Save a reviewable advisory plan to local project data after explicit user approval. Steps are not executed automatically.",
+            "parameters": {"type": "object", "properties": {"goal": {"type": "string", "maxLength": 500}}, "required": ["goal"], "additionalProperties": False}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "ultron_list_saved_plans",
+            "description": "List locally saved ULTRON advisory plans and their manual progress states. Read-only; does not execute tasks.",
+            "parameters": {"type": "object", "properties": {}, "additionalProperties": False}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "ultron_update_plan_step",
+            "description": "Manually update the review status of one saved plan step. Requires approval. This only changes local progress metadata and never executes the step.",
+            "parameters": {"type": "object", "properties": {
+                "plan_id": {"type": "string", "maxLength": 32},
+                "step_index": {"type": "integer", "minimum": 0, "maximum": 20},
+                "status": {"type": "string", "enum": ["pending", "in_progress", "completed", "blocked"]}
+            }, "required": ["plan_id", "step_index", "status"], "additionalProperties": False}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "ultron_capability_report",
             "description": "Describe the safe Ultron-inspired subsystem, its capabilities and limitations.",
             "parameters": {"type": "object", "properties": {}, "additionalProperties": False}
@@ -1123,6 +1151,23 @@ def execute(name, args, confirm=None, progress=None):
         return {"ok": True, "displayed_in_local_hud": bool(progress), "title": title, "message": message,
                 "note": "Local JARVIS HUD only; no external communication was sent."}
 
+    if name == "ultron_save_strategy_plan":
+        from ultron_features import save_strategy_plan
+        goal = str(args.get("goal", "")).strip()
+        if not _confirm_action(confirm, "Save this ULTRON advisory plan locally for later review? No steps will execute.\n\n" + goal):
+            return {"ok": False, "error": "User did not approve saving the ULTRON plan."}
+        return save_strategy_plan(goal)
+    if name == "ultron_list_saved_plans":
+        from ultron_features import list_saved_plans
+        return list_saved_plans()
+    if name == "ultron_update_plan_step":
+        from ultron_features import update_saved_plan_step
+        plan_id = str(args.get("plan_id", "")).strip()
+        step_index = args.get("step_index")
+        status = str(args.get("status", "")).strip()
+        if not _confirm_action(confirm, f"Update ULTRON plan {plan_id}, step {step_index}, to '{status}'? This changes progress metadata only; it does not run the step."):
+            return {"ok": False, "error": "User did not approve the ULTRON plan progress update."}
+        return update_saved_plan_step(plan_id, step_index, status)
     if name == "ultron_capability_report":
         from ultron_features import capability_report
         return capability_report()
