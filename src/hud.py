@@ -319,7 +319,12 @@ class HUD:
             font=("Consolas", 8), anchor="w"
         )
         self.android_status.pack(side="left", fill="x", expand=True)
-        self._button(header, "REFRESH", self.on_android_refresh)
+        tk.Button(
+            header, text="REFRESH", command=self.on_android_refresh,
+            bg=PANEL_ALT, fg=CYAN, activebackground=CYAN,
+            activeforeground=BG, bd=0, padx=12, pady=6,
+            font=("Segoe UI", 8, "bold"), cursor="hand2"
+        ).pack(side="right")
         body = tk.Frame(inner, bg=PANEL)
         body.pack(fill="x", pady=(8, 0))
         list_frame = tk.Frame(body, bg=PANEL)
@@ -343,8 +348,16 @@ class HUD:
             "youtube", "chrome", "maps", "whatsapp", "spotify",
             "gmail", "settings", "camera", "photos"
         ).pack(fill="x", pady=(2, 6))
-        self._button(actions, "LAUNCH ON SELECTED", self._launch_android_selected)
-        self._button(actions, "WAKE SELECTED", self._wake_android_selected)
+        for label, command in (
+            ("LAUNCH ON SELECTED", self._launch_android_selected),
+            ("WAKE SELECTED", self._wake_android_selected),
+        ):
+            tk.Button(
+                actions, text=label, command=command,
+                bg=PANEL_ALT, fg=CYAN, activebackground=CYAN,
+                activeforeground=BG, bd=0, padx=8, pady=8,
+                font=("Segoe UI", 8, "bold"), cursor="hand2"
+            ).pack(fill="x", pady=3)
         tk.Label(
             inner,
             text="Select one or more authorized phones. Every launch/wake action asks for approval. Lock screens are never bypassed.",
