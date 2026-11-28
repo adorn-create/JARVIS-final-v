@@ -259,7 +259,7 @@ All subsystems remain in one JARVIS process and share the existing local model a
 
 ## Android multi-device bridge (local ADB)
 
-JARVIS can list Android devices connected over USB or already paired through Android Wireless Debugging, wake selected displays, and launch allowlisted apps on multiple phones in parallel.
+JARVIS can list Android devices connected over USB or already paired through Android Wireless Debugging, wake selected displays, and launch allowlisted apps on multiple phones in parallel. The HUD includes an Android panel: refresh the device list, multi-select authorized phones, choose an allowlisted app, and launch it or wake the selected displays. Every action is confirmed before it runs; the panel does not unlock phones.
 
 ### Setup
 1. Install the official [Android SDK Platform-Tools](https://developer.android.com/tools/releases/platform-tools).
