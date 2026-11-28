@@ -4,7 +4,7 @@ import re
 MODULE_RULES = {
     "ULTRON": (r"\b(ultron|strategic plan|self improvement|self-improvement|fleet simulation|robot fleet|resilience check|adaptive defense|improvement proposal)\b",),
     "MORPHEUS": (
-        r"\b(cve|vulnerabilit|exploit|firewall|defender|malware|security scan|tls|https scan|port scan|cyber|network audit)\b",
+        r"\b(cve|vulnerabilit|exploit|firewall|defender|malware|security scan|tls|https scan|port scan|subnet inventory|device inventory|penetration test|cyber|network audit)\b",
     ),
     "E.V.": (
         r"\b(camera|face profile|face recognition|biometric|heart rate|spo2|microphone sample|sound level|public alert|wearable|opencv|vision sensor)\b",
