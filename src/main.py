@@ -152,6 +152,7 @@ class Controller:
         previous = {}
         adb_warning_shown = False
         first_scan = True
+        wireless_reconnect_counter = 0
         while not self._shutting_down:
             if not first_scan and self._android_watch_stop.wait(5):
                 break
@@ -165,6 +166,20 @@ class Controller:
                     for item in result.get("devices", [])
                     if item.get("state") in {"device", "unauthorized", "offline"}
                 }
+                wireless_reconnect_counter += 1
+                if wireless_reconnect_counter >= 6:
+                    wireless_reconnect_counter = 0
+                    try:
+                        from android_bridge import reconnect_known_wireless_devices
+                        reconnect_result = reconnect_known_wireless_devices()
+                        for attempt in reconnect_result.get("attempted", []):
+                            state = "reconnected" if attempt.get("ok") else "reconnect pending"
+                            self.hud.dispatch(
+                                self.hud.add, "ANDROID • WIRELESS",
+                                f"{attempt.get('address')}: {state}.",
+                            )
+                    except Exception as reconnect_exc:
+                        LOG.debug("Remembered Android wireless reconnect skipped: %s", reconnect_exc)
                 for serial, item in current.items():
                     state = item.get("state")
                     prior = previous.get(serial, {}).get("state")
