@@ -57,6 +57,58 @@ SERIAL_RE = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
 HOSTPORT_RE = re.compile(r"^(?:\[[0-9A-Fa-f:]+\]|[A-Za-z0-9.-]{1,253}):[0-9]{1,5}$")
 
 
+
+def _wireless_endpoint_path():
+    base = os.environ.get("LOCALAPPDATA") or str(Path.home() / ".local" / "share")
+    folder = Path(base) / "JARVIS"
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder / "android_wireless.json"
+
+
+def _remember_wireless_endpoint(address):
+    path = _wireless_endpoint_path()
+    try:
+        saved = json.loads(path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, OSError, ValueError):
+        saved = []
+    if not isinstance(saved, list):
+        saved = []
+    if address not in saved:
+        saved.append(address)
+    path.write_text(json.dumps(saved, indent=2), encoding="utf-8")
+
+
+def reconnect_known_wireless_devices():
+    """Reconnect only to private-LAN endpoints the user previously approved."""
+    path = _wireless_endpoint_path()
+    try:
+        endpoints = json.loads(path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, OSError, ValueError):
+        return {"ok": True, "attempted": [], "note": "No remembered wireless devices."}
+    if not isinstance(endpoints, list):
+        return {"ok": False, "attempted": [], "error": "Wireless device list is invalid."}
+    current = {item["serial"]: item["state"] for item in list_android_devices()["devices"]}
+    attempted = []
+    for address in endpoints[:16]:
+        if not isinstance(address, str) or not HOSTPORT_RE.fullmatch(address):
+            continue
+        host = address.rsplit(":", 1)[0].strip("[]")
+        try:
+            ip = ipaddress.ip_address(host)
+        except ValueError:
+            continue
+        port = int(address.rsplit(":", 1)[1])
+        if not ip.is_private or ip.is_loopback or ip.is_unspecified or not 1 <= port <= 65535:
+            continue
+        if current.get(address) == "device":
+            continue
+        try:
+            output = _run(["connect", address], timeout=12)
+            attempted.append({"address": address, "ok": "connected to" in output.lower() or "already connected" in output.lower(), "output": output[:160]})
+        except Exception as exc:
+            attempted.append({"address": address, "ok": False, "error": str(exc)[:160]})
+    return {"ok": all(item["ok"] for item in attempted), "attempted": attempted}
+
 def _adb_path():
     configured = os.environ.get("JARVIS_ADB_PATH", "").strip().strip('"')
     candidates = [
@@ -233,5 +285,7 @@ def connect_wireless_android_device(address):
         raise ValueError("Connect port must be between 1 and 65535.")
     output = _run(["connect", address], timeout=20)
     ok = "connected to" in output.lower() or "already connected" in output.lower()
+    if ok:
+        _remember_wireless_endpoint(address)
     return {"ok": ok, "output": output[:300],
             "note": "The device must still be authorized in Android Wireless Debugging. Use android_list_devices to verify its state."}
