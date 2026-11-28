@@ -258,3 +258,129 @@ def lookup_cves(keyword: str, limit: int = 5) -> dict:
             "description": description[:500],
         })
     return {"ok": True, "source": "NIST NVD", "keyword": term, "results": items}
+
+def scan_private_https_tls(url: str, timeout: float = 5.0) -> dict:
+    """Inspect TLS negotiation and certificate on a private/local HTTPS lab endpoint.
+
+    Performs a TLS handshake only. No HTTP request, exploit payload, or authentication
+    is sent. Certificate validation is attempted first; if it fails, a second
+    unverified handshake is used only to collect diagnostic certificate metadata.
+    """
+    import datetime
+    import hashlib
+    import ssl
+
+    parsed = urllib.parse.urlsplit(str(url).strip())
+    if parsed.scheme.lower() != "https" or not parsed.hostname:
+        raise ValueError("Provide an https:// URL for the TLS scan.")
+    if parsed.username or parsed.password:
+        raise ValueError("URLs containing credentials are not accepted.")
+    host = parsed.hostname.casefold()
+    if host != "localhost":
+        _private_ipv4(host)
+    port = parsed.port or 443
+    if not 1 <= port <= 65535:
+        raise ValueError("Invalid HTTPS port.")
+    timeout = max(1.0, min(float(timeout), 8.0))
+
+    verified = True
+    verification_error = None
+    cert = {}
+    tls_version = None
+    cipher = None
+    sock = None
+    try:
+        context = ssl.create_default_context()
+        try:
+            raw = socket.create_connection((host, port), timeout=timeout)
+            sock = context.wrap_socket(raw, server_hostname=host)
+        except ssl.SSLCertVerificationError as exc:
+            verified = False
+            verification_error = str(exc)[:400]
+            try:
+                if raw:
+                    raw.close()
+            except Exception:
+                pass
+            diagnostic_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            diagnostic_context.check_hostname = False
+            diagnostic_context.verify_mode = ssl.CERT_NONE
+            raw = socket.create_connection((host, port), timeout=timeout)
+            sock = diagnostic_context.wrap_socket(raw, server_hostname=host)
+        with sock:
+            cert = sock.getpeercert() or {}
+            binary_cert = sock.getpeercert(binary_form=True) or b""
+            tls_version = sock.version()
+            cipher = sock.cipher()
+            fingerprint = hashlib.sha256(binary_cert).hexdigest() if binary_cert else None
+    except Exception as exc:
+        return {
+            "ok": False,
+            "url": url[:300],
+            "error": f"TLS handshake failed: {exc}",
+            "note": "No HTTP request or exploit payload was sent.",
+        }
+
+    def flatten(name):
+        values = []
+        for rdn in cert.get(name, ()):
+            for key, value in rdn:
+                values.append(f"{key}={value}")
+        return values
+
+    not_after = cert.get("notAfter")
+    expiry_days = None
+    if not_after:
+        try:
+            expiry = datetime.datetime.fromtimestamp(
+                ssl.cert_time_to_seconds(not_after), tz=datetime.timezone.utc
+            )
+            expiry_days = (expiry - datetime.datetime.now(datetime.timezone.utc)).days
+        except (ValueError, OverflowError):
+            pass
+
+    sans = [
+        value for kind, value in cert.get("subjectAltName", ())
+        if kind in {"DNS", "IP Address"}
+    ]
+    findings = []
+    if not verified:
+        findings.append({
+            "severity": "high",
+            "issue": "certificate_validation_failed",
+            "detail": verification_error or "The certificate was not trusted or hostname validation failed.",
+        })
+    if expiry_days is not None and expiry_days < 0:
+        findings.append({"severity": "high", "issue": "certificate_expired", "days_expired": abs(expiry_days)})
+    elif expiry_days is not None and expiry_days <= 30:
+        findings.append({"severity": "medium", "issue": "certificate_expiring_soon", "days_remaining": expiry_days})
+    if tls_version in {"TLSv1", "TLSv1.1"}:
+        findings.append({"severity": "high", "issue": "legacy_tls_version", "negotiated": tls_version})
+    return {
+        "ok": True,
+        "url": url[:300],
+        "target": host,
+        "port": port,
+        "scope": "localhost or one private/loopback/link-local IPv4 address",
+        "method": "TLS handshake and certificate inspection only",
+        "certificate": {
+            "validation_passed": verified,
+            "verification_error": verification_error,
+            "subject": flatten("subject"),
+            "issuer": flatten("issuer"),
+            "subject_alt_names": sans[:30],
+            "not_before": cert.get("notBefore"),
+            "not_after": not_after,
+            "days_until_expiry": expiry_days,
+            "sha256_fingerprint": fingerprint,
+        },
+        "negotiated_tls_version": tls_version,
+        "cipher": {
+            "name": cipher[0],
+            "protocol": cipher[1],
+            "secret_bits": cipher[2],
+        } if cipher else None,
+        "findings": findings,
+        "note": "This is a TLS configuration snapshot, not a full cipher-suite or vulnerability assessment. No HTTP request or exploit payload was sent.",
+    }
+
