@@ -712,6 +712,46 @@ TOOL_DEFINITIONS = [
         }
     },
 
+    {
+        "type": "function",
+        "function": {
+            "name": "ultron_capability_report",
+            "description": "Describe the safe Ultron-inspired subsystem, its capabilities and limitations.",
+            "parameters": {"type": "object", "properties": {}, "additionalProperties": False}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "ultron_strategic_plan",
+            "description": "Create a bounded advisory plan for a goal. Planning only; it does not execute commands or access devices.",
+            "parameters": {"type": "object", "properties": {"goal": {"type": "string", "maxLength": 500}}, "required": ["goal"], "additionalProperties": False}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "ultron_review_improvement",
+            "description": "Turn user feedback into a review-only improvement proposal. Does not modify source code or model weights.",
+            "parameters": {"type": "object", "properties": {"area": {"type": "string", "maxLength": 100}, "feedback": {"type": "string", "maxLength": 1000}}, "required": ["area", "feedback"], "additionalProperties": False}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "ultron_simulate_fleet",
+            "description": "Simulate a small virtual robotics fleet. No network access or physical device control. Allowed commands: status, standby, return_to_base, formation_demo, sensor_check.",
+            "parameters": {"type": "object", "properties": {"command": {"type": "string", "enum": ["status", "standby", "return_to_base", "formation_demo", "sensor_check"]}, "unit_count": {"type": "integer", "minimum": 1, "maximum": 20}}, "required": ["command"], "additionalProperties": False}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "ultron_resilience_check",
+            "description": "Read-only local CPU, memory, disk and battery health check with backup and recovery recommendations.",
+            "parameters": {"type": "object", "properties": {}, "additionalProperties": False}
+        }
+    },
 ]
 
 
@@ -888,6 +928,30 @@ def execute(name, args, confirm=None, progress=None):
             progress("ALERT • " + title + ": " + message[:90])
         return {"ok": True, "displayed_in_local_hud": bool(progress), "title": title, "message": message,
                 "note": "Local JARVIS HUD only; no external communication was sent."}
+
+    if name == "ultron_capability_report":
+        from ultron_features import capability_report
+        return capability_report()
+    if name == "ultron_strategic_plan":
+        from ultron_features import strategic_plan
+        return strategic_plan(args.get("goal", ""))
+    if name == "ultron_review_improvement":
+        from ultron_features import review_improvement
+        return review_improvement(args.get("area", ""), args.get("feedback", ""))
+    if name == "ultron_simulate_fleet":
+        from ultron_features import simulate_fleet
+        command = args.get("command", "")
+        count = args.get("unit_count", 3)
+        if not _confirm_action(
+            confirm,
+            "Run a virtual-only fleet simulation? No physical devices or networks will be contacted.\\n\\n"
+            f"Command: {command}\\nUnits: {count}"
+        ):
+            return {"ok": False, "error": "User did not approve the fleet simulation."}
+        return simulate_fleet(command, count)
+    if name == "ultron_resilience_check":
+        from ultron_features import resilience_check
+        return resilience_check()
 
     if name == "report_progress":
         status = str(args.get("status", "")).strip()[:120]
