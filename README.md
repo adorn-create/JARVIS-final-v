@@ -190,3 +190,20 @@ All camera, microphone, health-data, network-feed, face-profile, and local-file 
 Example wearable bridge JSON: {"timestamp":"2026-11-28T10:30:00+05:30","source":"my wearable bridge","heart_rate_bpm":72,"spo2_percent":98,"temperature_c":36.7}.
 
 Set JARVIS_PUBLIC_ALERT_FEEDS in .env to semicolon-separated official HTTPS RSS/Atom feed URLs to enable public bulletins.
+
+
+## F.R.I.D.A.Y.-inspired mode (lightweight, no second AI model)
+
+F.R.I.D.A.Y.-style analysis is integrated into JARVIS as optional, on-demand tools. It reuses the existing local assistant and standard Python/psutil functionality; no additional language model is loaded.
+
+- **Movement and target tracking:** analyze 2D position samples for one anonymous moving region, estimate direction and speed, and extrapolate a short (up to three-second) position. This is coordinate tracking only; it does not identify people or guide weapons.
+- **Movement-pattern analysis:** summarize whether supplied motion samples are mostly stationary, steady, or variable. It is not a combat prediction system.
+- **Environmental safety assessment:** score user-reported signals such as smoke, fire, gas smell, approaching vehicles, injury, loud impacts, and power outages. This is a rule-based advisory, not automatic threat detection and never scores people.
+- **System diagnostics:** read CPU, RAM, disk, battery and available temperature-sensor metadata without changing the PC.
+- **Power advice:** provide battery-saving suggestions only; Windows power settings are not modified.
+- **Navigation cues:** convert a supplied compass heading and target bearing into a left/right/straight cue. Optional distance and speed produce a rough ETA. No GPS, autopilot, vehicle control, or certified aviation navigation is provided.
+- **Intelligence gathering:** search public web snippets after explicit approval. Search results are untrusted and important claims need verification.
+- **Communication and notifications:** create local alerts in the JARVIS HUD. No SMS, calls, email, or external messages are sent.
+- **Emergency support:** provide general first-response reminders for fire, medical emergencies, road accidents, intrusion, severe weather, and power outages. JARVIS does not call emergency services; follow local authorities.
+
+The requested exclusions are intentional: **no suit control and no remote assistance**. F.R.I.D.A.Y. tools do not control weapons, vehicles, external devices, or remote computers. Movement, hazard, navigation, and emergency outputs are advisory only. These features are invoked on demand and do not start continuous camera, microphone, or location monitoring.
