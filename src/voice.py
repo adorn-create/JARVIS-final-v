@@ -26,63 +26,97 @@ class VoiceEngine:
         return self._whisper
 
     def record_and_transcribe(
-        self, max_seconds=18, sample_rate=16000, on_level=None
+        self, max_seconds=20, sample_rate=16000, on_level=None
     ):
+        """Capture from the Windows default mic, show live RMS, then transcribe locally."""
         import numpy as np
         import sounddevice as sd
 
-        device = sd.query_devices(kind="input")
-        print(
-            f"[JARVIS mic] Input: {device.get('name', 'Default microphone')}. "
-            "Speak after listening prompt."
-        )
-        chunk_seconds = 0.2
-        frames = int(sample_rate * chunk_seconds)
-        ambient = []
-        chunks = []
-        started = False
-        silence = 0
-        threshold = 0.008
-        with sd.InputStream(
-            samplerate=sample_rate,
-            channels=1,
-            dtype="float32",
-            blocksize=frames,
-        ) as stream:
-            for _ in range(4):
-                data, _ = stream.read(frames)
-                ambient.append(float(np.sqrt(np.mean(np.square(data)) + 1e-9)))
-            threshold = max(0.008, float(np.median(ambient)) * 2.8)
-            print("[JARVIS mic] Listening...")
-            for index in range(int(max_seconds / chunk_seconds)):
-                data, _ = stream.read(frames)
-                data = np.asarray(data, dtype=np.float32).reshape(-1)
-                rms = float(np.sqrt(np.mean(np.square(data)) + 1e-9))
-                if on_level:
-                    on_level(min(1.0, rms * 8))
-                if not started:
-                    if rms >= threshold:
-                        started = True
+        try:
+            device = sd.query_devices(kind="input")
+            native_rate = int(device.get("default_samplerate") or sample_rate)
+            if int(device.get("max_input_channels", 0)) < 1:
+                raise RuntimeError("The selected Windows input device has no input channels.")
+            print(
+                f"[JARVIS mic] Input: {device.get('name', 'Default microphone')} "
+                f"({native_rate} Hz). Speak now."
+            )
+            chunk_seconds = 0.2
+            frames = max(1, int(native_rate * chunk_seconds))
+            ambient = []
+            chunks = []
+            started = False
+            silence = 0
+            with sd.InputStream(
+                device=None,
+                samplerate=native_rate,
+                channels=1,
+                dtype="float32",
+                blocksize=frames,
+            ) as stream:
+                # Calibrate for background noise while keeping the visualizer alive.
+                for _ in range(5):
+                    data, overflowed = stream.read(frames)
+                    data = np.asarray(data, dtype=np.float32).reshape(-1)
+                    rms = float(np.sqrt(np.mean(np.square(data)) + 1e-12))
+                    ambient.append(rms)
+                    if on_level:
+                        on_level(min(1.0, rms * 12.0))
+                    if overflowed:
+                        LOG.warning("Microphone input overflow during calibration.")
+                threshold = max(0.0035, float(np.median(ambient)) * 2.4)
+                print(f"[JARVIS mic] Listening (voice threshold {threshold:.4f})...")
+                # Keep listening for up to 10 seconds for the first word.
+                for index in range(int(max_seconds / chunk_seconds)):
+                    data, overflowed = stream.read(frames)
+                    data = np.asarray(data, dtype=np.float32).reshape(-1)
+                    rms = float(np.sqrt(np.mean(np.square(data)) + 1e-12))
+                    if on_level:
+                        on_level(min(1.0, rms * 12.0))
+                    if overflowed:
+                        LOG.warning("Microphone input overflow while recording.")
+                    if not started:
+                        if rms >= threshold:
+                            started = True
+                            chunks.append(data)
+                            silence = 0
+                        elif index >= 50:
+                            break
+                    else:
                         chunks.append(data)
-                        silence = 0
-                    elif index >= 25:
-                        break
-                else:
-                    chunks.append(data)
-                    silence = silence + 1 if rms < threshold else 0
-                    if silence >= 7 and len(chunks) >= 3:
-                        break
-        if on_level:
-            on_level(0)
+                        silence = silence + 1 if rms < threshold else 0
+                        if silence >= 10 and len(chunks) >= 4:
+                            break
+        except Exception as exc:
+            raise RuntimeError(
+                f"Could not capture microphone audio ({exc}). Check Windows microphone "
+                "permissions and the selected default input device."
+            ) from exc
+        finally:
+            if on_level:
+                on_level(0.0)
+
         if not started:
-            print("[JARVIS mic] No speech detected. Check input device/volume.")
+            print("[JARVIS mic] No speech detected before the listening timeout.")
             return ""
+
+        audio = np.concatenate(chunks).astype(np.float32, copy=False)
+        if native_rate != sample_rate:
+            target_length = max(1, int(round(len(audio) * sample_rate / native_rate)))
+            source_positions = np.arange(len(audio), dtype=np.float32)
+            target_positions = np.arange(target_length, dtype=np.float32) * (
+                native_rate / sample_rate
+            )
+            audio = np.interp(
+                target_positions, source_positions, audio
+            ).astype(np.float32)
+
         model = self._load_stt()
         segments, info = model.transcribe(
-            np.concatenate(chunks),
-            language="en",
-            beam_size=5,
-            vad_filter=True,
+            audio,
+            language=os.getenv("JARVIS_STT_LANGUAGE", "en"),
+            beam_size=1,
+            vad_filter=False,
             condition_on_previous_text=False,
             initial_prompt="Natural conversational English. JARVIS is an AI assistant.",
         )
@@ -93,18 +127,39 @@ class VoiceEngine:
     def speak(self, text, on_complete=None):
         import pyttsx3
 
+        comtypes = None
+        engine = None
         try:
+            # SAPI5 requires COM to be initialized on the thread doing playback.
+            if os.name == "nt":
+                try:
+                    import comtypes as _comtypes
+                    comtypes = _comtypes
+                    comtypes.CoInitialize()
+                except ImportError:
+                    comtypes = None
             with self._tts_lock:
                 self._stop_speaking.clear()
-                if self._tts is None:
-                    self._tts = pyttsx3.init()
-                    self._tts.setProperty("rate", 180)
+                engine = pyttsx3.init("sapi5") if os.name == "nt" else pyttsx3.init()
+                self._tts = engine
+                engine.setProperty("rate", int(os.getenv("JARVIS_TTS_RATE", "180")))
                 for chunk in _speech_chunks(text):
                     if self._stop_speaking.is_set():
                         break
-                    self._tts.say(chunk)
-                    self._tts.runAndWait()
+                    engine.say(chunk)
+                    engine.runAndWait()
         finally:
+            if engine is not None:
+                try:
+                    engine.stop()
+                except Exception:
+                    LOG.debug("TTS engine cleanup failed", exc_info=True)
+            self._tts = None
+            if comtypes is not None:
+                try:
+                    comtypes.CoUninitialize()
+                except Exception:
+                    LOG.debug("COM cleanup failed", exc_info=True)
             if on_complete:
                 on_complete()
 
