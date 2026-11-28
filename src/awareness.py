@@ -51,18 +51,29 @@ class AwarenessMonitor:
                 if memory.percent >= 92:
                     self._emit_limited("memory", f"High memory usage detected: {memory.percent:.0f}%")
                 current = set()
-                for proc in psutil.process_iter(["pid", "name"]):
+                for proc in psutil.process_iter(["pid", "name", "exe"]):
                     try:
                         info = proc.info
                         name = (info.get("name") or "unknown").strip()
-                        current.add((info.get("pid"), name))
+                        executable = (info.get("exe") or "").casefold().replace("/", "\\")
+                        current.add((info.get("pid"), name, executable))
                     except (psutil.NoSuchProcess, psutil.AccessDenied):
                         continue
                 if self._known:
                     started = current - self._known
-                    # Report only a small sample; process names are observations, not malware verdicts.
-                    for pid, name in list(started)[:3]:
+                    # Process paths are weak indicators, not malware verdicts.
+                    for pid, name, executable in list(started)[:5]:
                         self.on_event({"type": "process", "message": f"New process observed: {name} (PID {pid})"})
+                        if any(marker in executable for marker in (
+                            "\\appdata\\local\\temp\\",
+                            "\\windows\\temp\\",
+                            "\\downloads\\",
+                        )):
+                            self._emit_limited(
+                                f"user-writable-process-{pid}",
+                                f"MORPHEUS REVIEW: {name} (PID {pid}) launched from a user-writable folder. This is not a malware verdict; inspect its file and signature.",
+                                cooldown=300,
+                            )
                 self._known = current
             except Exception as exc:
                 self._emit_limited("monitor", f"PC awareness check failed: {exc}", cooldown=120)
