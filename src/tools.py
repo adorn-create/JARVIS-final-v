@@ -590,6 +590,56 @@ TOOL_DEFINITIONS = [
             },
         },
     },
+
+    {
+        "type": "function",
+        "function": {
+            "name": "ev_track_camera_motion",
+            "description": "On-demand, short camera motion tracking using local OpenCV. Reports moving-region tracks and direction only; it does not identify people, save frames, or control anything. Requires explicit camera approval.",
+            "parameters": {"type": "object", "properties": {"duration_seconds": {"type": "integer", "minimum": 2, "maximum": 8}}, "additionalProperties": false},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "ev_read_biometrics",
+            "description": "Read fresh readings from the user's local wearable bridge file (heart rate, SpO2, temperature when present). No sensor values are fabricated; informational only. Requires approval.",
+            "parameters": {"type": "object", "properties": {}, "additionalProperties": false},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "ev_analyze_senses",
+            "description": "Capture a very short microphone sample and classify acoustic level/transients locally. Raw audio is not saved and this is not speech recognition. Requires microphone approval.",
+            "parameters": {"type": "object", "properties": {}, "additionalProperties": false},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "ev_public_safety_alerts",
+            "description": "Read configured official public HTTPS RSS/Atom emergency bulletins. No radio interception, private dispatch feeds, or non-public channels. Requires approval before network access.",
+            "parameters": {"type": "object", "properties": {"max_items": {"type": "integer", "minimum": 1, "maximum": 20}}, "additionalProperties": false},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "ev_face_profiles",
+            "description": "List locally enrolled JARVIS face-unlock profiles. Does not identify unknown or public people. Requires approval to read the local profile roster.",
+            "parameters": {"type": "object", "properties": {}, "additionalProperties": false},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "ev_analyze_project_data",
+            "description": "Produce aggregate summaries of one project-relative CSV/JSON/JSONL/LOG/TXT file under data/ or logs/ (max 2 MB). Does not read arbitrary paths or return full file contents. Requires approval.",
+            "parameters": {"type": "object", "properties": {"relative_path": {"type": "string"}}, "required": ["relative_path"], "additionalProperties": false},
+        },
+    },
+
 ]
 
 
@@ -696,6 +746,40 @@ def execute(name, args, confirm=None, progress=None):
     if name == "security_lookup_cves":
         from security_engine import lookup_cves
         return lookup_cves(args.get("keyword", ""), args.get("limit", 5))
+
+    if name == "ev_track_camera_motion":
+        from ev_features import track_camera_motion
+        duration = args.get("duration_seconds", 4)
+        if not _confirm_action(confirm, "Enable the camera for a short local motion-tracking sample? Frames are processed in memory and not saved; no people are identified."):
+            return {"ok": False, "error": "User did not approve camera tracking."}
+        return track_camera_motion(duration_seconds=duration)
+    if name == "ev_read_biometrics":
+        from ev_features import read_biometrics
+        if not _confirm_action(confirm, "Read the current local wearable sensor readings (if available)? This may include health-related measurements."):
+            return {"ok": False, "error": "User did not approve reading biometric data."}
+        return read_biometrics()
+    if name == "ev_analyze_senses":
+        from ev_features import analyze_microphone_sample
+        if not _confirm_action(confirm, "Use the microphone for a 2-second acoustic-level sample? Audio will not be saved."):
+            return {"ok": False, "error": "User did not approve microphone analysis."}
+        return analyze_microphone_sample()
+    if name == "ev_public_safety_alerts":
+        from ev_features import fetch_public_safety_alerts
+        if not _confirm_action(confirm, "Fetch configured public HTTPS emergency bulletins? This connects only to feeds configured in JARVIS settings; no radio is intercepted."):
+            return {"ok": False, "error": "User did not approve public alert feed access."}
+        return fetch_public_safety_alerts(args.get("max_items", 10))
+    if name == "ev_face_profiles":
+        from ev_features import enrolled_face_profiles
+        if not _confirm_action(confirm, "Read the names and roles of locally enrolled JARVIS face-unlock profiles?"):
+            return {"ok": False, "error": "User did not approve reading face profile metadata."}
+        return enrolled_face_profiles()
+    if name == "ev_analyze_project_data":
+        from ev_features import analyze_project_file
+        relative_path = str(args.get("relative_path", "")).strip()
+        if not _confirm_action(confirm, "Analyze this project-local data file and return aggregate statistics only?\n\n" + relative_path):
+            return {"ok": False, "error": "User did not approve local data analysis."}
+        return analyze_project_file(relative_path)
+
     if name == "report_progress":
         status = str(args.get("status", "")).strip()[:120]
         if progress and status:
