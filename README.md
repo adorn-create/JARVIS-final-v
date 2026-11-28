@@ -220,3 +220,22 @@ JARVIS now coordinates the existing JARVIS, E.V., F.R.I.D.A.Y., and MORPHEUS cap
 - **One local AI brain:** no second LLM, cloud agent, or background autonomous agent is started. Existing face authentication, camera controls, wake-word controls, and hand-gesture controls remain separate and unchanged.
 
 Routing is advisory and intentionally simple. If a request is ambiguous, JARVIS remains the coordinator and should ask for clarification rather than guessing or running an unrelated action.
+
+
+## ULTRON-inspired subsystem (safe implementation)
+
+The ULTRON-inspired layer is integrated as a capability module under JARVIS, not as a second model or an autonomous agent.
+
+- **Superintelligence analogue:** the existing local Ollama model handles reasoning, analysis and planning; it is not a claim of superhuman intelligence.
+- **Self-improvement analogue:** `ultron_review_improvement` turns feedback into a testable proposal. It does not edit source code or model weights.
+- **Digital infiltration analogue:** MORPHEUS remains the defensive security system for explicitly authorized lab/private targets. No unauthorized access or exploit automation.
+- **Robotics analogue:** `ultron_simulate_fleet` demonstrates virtual units and safe simulation commands only. No physical actuator is connected.
+- **Robot-army / distributed-presence analogue:** virtual fleet coordination and a future design path for authenticated, owner-enrolled nodes. No self-replicating code or remote deployment.
+- **Strategic analysis:** `ultron_strategic_plan` creates bounded steps, risk points and approval checkpoints without executing them.
+- **Adaptation:** user feedback can become reviewed intent-model or code-improvement suggestions; changes require human review and tests.
+- **Durability analogue:** `ultron_resilience_check` reads local CPU, RAM, disk and battery health and recommends backups/recovery.
+- **Autonomous-operation analogue:** plans may be prepared, but real actions still use the existing allowlists and user approval flow.
+
+Tools: `ultron_capability_report`, `ultron_strategic_plan`, `ultron_review_improvement`, `ultron_simulate_fleet`, and `ultron_resilience_check`.
+
+No self-replication, unauthorized infiltration, weapon control, automatic source rewriting, or unattended physical robotics is included.
