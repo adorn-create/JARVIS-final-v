@@ -768,10 +768,68 @@ TOOL_DEFINITIONS = [
             "parameters": {"type": "object", "properties": {}, "additionalProperties": False}
         }
     },
+
+    {
+        "type": "function",
+        "function": {
+            "name": "android_list_devices",
+            "description": "List Android phones/tablets currently visible to this PC through ADB, including authorized, unauthorized, and offline states. Read-only; does not access phone contents.",
+            "parameters": {"type": "object", "properties": {}, "additionalProperties": False}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "android_wake_devices",
+            "description": "Wake the displays of selected, currently authorized Android devices in parallel. Does not unlock them, dismiss the lock screen, or enter a PIN. Requires explicit user approval.",
+            "parameters": {"type": "object", "properties": {"serials": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 16}}, "required": ["serials"], "additionalProperties": False}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "android_launch_app",
+            "description": "Launch one allowlisted Android app on selected, currently authorized ADB devices in parallel. Supported apps: YouTube, Chrome, Maps, WhatsApp, Spotify, Gmail, Settings, Camera, Photos. Requires explicit user approval. A locked phone may require its owner to unlock it first.",
+            "parameters": {"type": "object", "properties": {"serials": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 16}, "app": {"type": "string", "enum": ["youtube", "chrome", "maps", "whatsapp", "spotify", "gmail", "settings", "camera", "photos"]}}, "required": ["serials", "app"], "additionalProperties": False}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "android_pair_wireless_device",
+            "description": "Pair one owner-controlled Android phone using its Android Wireless Debugging pairing address and temporary six-digit pairing code. The code is used once and not saved. Requires explicit user approval; never bypasses the phone lock screen.",
+            "parameters": {"type": "object", "properties": {"address": {"type": "string"}, "pairing_code": {"type": "string", "pattern": "^[0-9]{6}$"}}, "required": ["address", "pairing_code"], "additionalProperties": False}
+        }
+    },
 ]
 
 
 def execute(name, args, confirm=None, progress=None):
+
+    if name == "android_list_devices":
+        from android_bridge import list_android_devices
+        return list_android_devices()
+    if name == "android_wake_devices":
+        from android_bridge import wake_android_displays
+        serials = args.get("serials", [])
+        if not _confirm_action(confirm, "Wake the displays on these selected Android devices? This does not unlock them or enter PINs.\\n\\n" + ", ".join(map(str, serials))):
+            return {"ok": False, "error": "User did not approve waking the Android devices."}
+        return wake_android_displays(serials)
+    if name == "android_launch_app":
+        from android_bridge import launch_android_app
+        serials = args.get("serials", [])
+        app = str(args.get("app", "")).strip().lower()
+        if not _confirm_action(confirm, f"Launch {app} on these selected, authorized Android devices?\\n\\n" + ", ".join(map(str, serials))):
+            return {"ok": False, "error": "User did not approve the Android app launch."}
+        return launch_android_app(serials, app)
+    if name == "android_pair_wireless_device":
+        from android_bridge import pair_wireless_android_device
+        address = str(args.get("address", "")).strip()
+        code = str(args.get("pairing_code", "")).strip()
+        if not _confirm_action(confirm, "Pair JARVIS with this owner-controlled Android Wireless Debugging endpoint? The six-digit pairing code is used once and is not stored.\\n\\n" + address):
+            return {"ok": False, "error": "User did not approve Android wireless pairing."}
+        return pair_wireless_android_device(address, code)
+
     if name == "system_status":
         return system_status()
     if name == "open_app":
