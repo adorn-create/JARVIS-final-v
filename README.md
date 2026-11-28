@@ -264,7 +264,7 @@ JARVIS can list Android devices connected over USB or already paired through And
 1. Install the official [Android SDK Platform-Tools](https://developer.android.com/tools/releases/platform-tools).
 2. Add the extracted Platform-Tools folder to Windows PATH, or set `JARVIS_ADB_PATH` in `.env` to the full path of `adb.exe`.
 3. On each phone you own or are authorized to administer, enable Developer Options and USB debugging. Connect by USB and approve the computer's RSA debugging prompt on the phone.
-4. For cable-free use, open **Developer options → Wireless debugging**. Use **Pair device with pairing code** and provide its private LAN IP, pairing port, and temporary six-digit code to JARVIS. The code is used once and is not saved.
+4. For cable-free use, open **Developer options → Wireless debugging**. Use **Pair device with pairing code** and provide its private LAN IP, pairing port, and temporary six-digit code to JARVIS. Then provide the separate IP:port shown on the main Wireless Debugging screen so JARVIS can run the ADB connect step. The code is used once and is not saved.
 
 ### Example commands
 - “List my connected Android devices.”
