@@ -31,6 +31,7 @@ This file distinguishes code present in the repository from capabilities that ha
 ## MORPHEUS read-only triage added on the upgrade branch
 
 - `security_triage_file`: hashes one user-selected local file, inspects its header/extension, Windows download-zone marker, and Authenticode signature where available. It never executes, uploads, modifies, deletes, or quarantines the file.
+- `security_defender_scan_file`: invokes a Microsoft Defender custom scan only after explicit approval. Defender may quarantine/remove a detection according to its existing policy; JARVIS does not alter that policy.
 - `security_process_snapshot`: reports process images in common user-writable locations as review leads only.
 - The low-overhead awareness loop now emits a rate-limited review alert when a newly observed process image launches from common user-writable locations. This is not a malware verdict and does not stop the process.
 
