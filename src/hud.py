@@ -264,26 +264,51 @@ class HUD:
     def _build_controls(self):
         controls = tk.Frame(self.root, bg=BG)
         controls.pack(fill="x", padx=22, pady=(0, 16))
+
+        # Give text input its own full-width row so it remains easy to find/use.
+        tk.Label(
+            controls, text="MESSAGE INPUT", bg=BG, fg=CYAN_DIM,
+            font=("Consolas", 8, "bold"), anchor="w"
+        ).pack(fill="x", pady=(0, 5))
+        input_row = tk.Frame(controls, bg=BG)
+        input_row.pack(fill="x", pady=(0, 8))
+        self._entry_placeholder = "Type a message here..."
         self.entry = tk.Entry(
-            controls, bg=PANEL_ALT, fg=TEXT, insertbackground=CYAN,
-            font=("Segoe UI", 11), bd=0, relief="flat"
+            input_row, bg=PANEL_ALT, fg=MUTED, insertbackground=CYAN,
+            font=("Segoe UI", 12), bd=0, relief="flat"
         )
-        self.entry.pack(side="left", fill="x", expand=True, ipady=11, padx=(0, 8))
+        self.entry.insert(0, self._entry_placeholder)
+        self.entry.pack(side="left", fill="x", expand=True, ipady=13, padx=(0, 8))
         self.entry.bind("<Return>", lambda _event: self.send())
-        self._button(controls, "SEND", self.send, primary=True)
-        self._button(controls, "VOICE", self._voice_action)
-        self._button(controls, "SCREEN", self._vision_action)
-        self._button(controls, "STOP AUDIO", self._stop_action)
+        self.entry.bind("<FocusIn>", self._clear_entry_placeholder)
+        self.entry.bind("<FocusOut>", self._restore_entry_placeholder)
+        self._button(input_row, "SEND", self.send, primary=True)
+
+        action_row = tk.Frame(controls, bg=BG)
+        action_row.pack(fill="x")
+        self._button(action_row, "VOICE / TALK", self._voice_action)
+        self._button(action_row, "SCREEN", self._vision_action)
+        self._button(action_row, "STOP AUDIO", self._stop_action)
         self._wake_button = self._button(
-            controls, "WAKE: OFF", lambda: self.on_toggle_wake(not self._wake_enabled)
+            action_row, "WAKE: OFF", lambda: self.on_toggle_wake(not self._wake_enabled)
         )
         self._face_button = self._button(
-            controls, "FACE: OFF", lambda: self.on_toggle_face(not self._face_enabled)
+            action_row, "FACE: OFF", lambda: self.on_toggle_face(not self._face_enabled)
         )
         self._gesture_button = self._button(
-            controls, "GESTURES: OFF",
+            action_row, "GESTURES: OFF",
             lambda: self.on_toggle_gestures(not self._gestures_enabled)
         )
+
+    def _clear_entry_placeholder(self, _event=None):
+        if self.entry.get() == self._entry_placeholder:
+            self.entry.delete(0, "end")
+            self.entry.configure(fg=TEXT)
+
+    def _restore_entry_placeholder(self, _event=None):
+        if not self.entry.get().strip():
+            self.entry.insert(0, self._entry_placeholder)
+            self.entry.configure(fg=MUTED)
 
     def _voice_action(self):
         self.on_voice()
@@ -316,8 +341,9 @@ class HUD:
 
     def send(self):
         text = self.entry.get().strip()
-        if text:
+        if text and text != self._entry_placeholder:
             self.entry.delete(0, "end")
+            self.entry.configure(fg=TEXT)
             self.add("YOU", text)
             self.core_caption.configure(text="PROCESSING REQUEST")
             self.on_send(text)
