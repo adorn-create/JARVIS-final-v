@@ -227,6 +227,9 @@ Routing is advisory and intentionally simple. If a request is ambiguous, JARVIS 
 
 
 ## ULTRON-inspired subsystem (safe implementation)
+ULTRON can now save advisory plans to `data/ultron_plans.json`, list saved plans, and track each step as pending/in progress/completed/blocked. Saving and progress changes require user approval. These are local review records only: JARVIS does not execute the plan steps in the background.
+
+
 
 The ULTRON-inspired layer is integrated as a capability module under JARVIS, not as a second model or an autonomous agent.
 
