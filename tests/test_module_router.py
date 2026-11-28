@@ -16,6 +16,9 @@ class ModuleRouterTests(unittest.TestCase):
     def test_desktop_routes_to_jarvis(self):
         self.assertIn("JARVIS", route_request("open notepad and type hello")["modules"])
 
+    def test_ultron_routes_to_ultron(self):
+        self.assertIn("ULTRON", route_request("run an Ultron strategic plan")["modules"])
+
     def test_combined_request_routes_multiple_modules(self):
         modules = route_request("check camera motion and scan for malware")["modules"]
         self.assertIn("E.V.", modules)
