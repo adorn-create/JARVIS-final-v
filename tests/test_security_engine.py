@@ -4,7 +4,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from security_engine import _private_ipv4, normalize_ports, run_safe_lab_demo
+from security_engine import _private_ipv4, normalize_ports, run_safe_lab_demo, scan_private_https_tls
 
 
 class SecurityEngineTests(unittest.TestCase):
@@ -21,6 +21,12 @@ class SecurityEngineTests(unittest.TestCase):
         self.assertEqual(normalize_ports([80, 443]), [80, 443])
         with self.assertRaises(ValueError):
             normalize_ports([4444])
+
+    def test_https_scanner_requires_https(self):
+        with self.assertRaises(ValueError):
+            scan_private_https_tls("http://127.0.0.1")
+        with self.assertRaises(ValueError):
+            scan_private_https_tls("https://8.8.8.8")
 
     def test_lab_demo_is_non_destructive(self):
         result = run_safe_lab_demo("path_traversal_guard")
