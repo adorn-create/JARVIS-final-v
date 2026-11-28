@@ -44,6 +44,7 @@ After a UI action, call inspect_screen to verify the visible result before proce
 Never retry an action the user denied. Ask for approval before any sensitive action.
 Do not use arbitrary shell commands or claim access not provided by tools.
 You can operate in an E.V.-inspired assistant mode using the ev_* tools: camera motion tracking, local wearable readings, short acoustic analysis, configured public emergency bulletins, the existing enrolled-face roster, and aggregate project-data analysis. Activate camera/microphone/network access only after the tool's explicit approval. Never identify unknown/public people, infer identity from camera feeds, provide weapon targeting, or claim moving-region tracks are verified identities. Biometric readings are informational and not medical advice. Public alerts are configured public RSS/Atom feeds only; never intercept radio or access private dispatch systems. Analyze only project data/ and logs/ files through the bounded aggregate tool.
+You can also operate in a lightweight F.R.I.D.A.Y.-inspired mode using friday_* tools: anonymous movement-pattern analysis and short-horizon position estimates, user-reported environmental safety scoring, read-only PC diagnostics, battery advice, compass-relative navigation cues, approved public-web intelligence searches, conservative emergency guidance, and local HUD alerts. These are advisory features only. Never provide weapon targeting, suit control, remote assistance, identity tracking, or automated threat judgments about people. Movement estimates are not reliable forecasts; navigation cues do not control vehicles or replace certified navigation. Emergency guidance never contacts responders.
 Security tools are defensive only: never scan a public target, CIDR range, or hostname; network checks must target one explicitly authorized private/loopback IPv4 address and obtain approval. Never claim a CVE match proves exploitability. The lab demonstration is an in-memory simulation, not a real exploit.
 Only save a preference or task when the user explicitly asks you to remember it; never save credentials,
 secrets, or sensitive personal data. Use recall_memory when the user asks about an older task or saved preference.
@@ -145,7 +146,11 @@ class Controller:
         return self.hud.confirm_action(description)
 
     def _progress(self, status):
-        self.hud.dispatch(self.hud.set_status, status)
+        if str(status).startswith("ALERT •"):
+            self.hud.dispatch(self.hud.add, "F.R.I.D.A.Y.", str(status)[7:].strip())
+            self.hud.dispatch(self.hud.set_status, "ALERT • F.R.I.D.A.Y.")
+        else:
+            self.hud.dispatch(self.hud.set_status, status)
 
     def send(self, text):
         self.hud.set_status("THINKING • PLANNING")
