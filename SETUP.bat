@@ -66,18 +66,16 @@ if errorlevel 1 (
 
 echo.
 echo ========================================
-echo       JARVIS FACE SCAN
+echo       JARVIS FACE RESET AND ENROLLMENT
 echo ========================================
-if exist "%LOCALAPPDATA%\JARVIS\face_auth\users.json" goto authenticate_owner
-if exist "%LOCALAPPDATA%\JARVIS\face_auth\face_samples.npz" goto authenticate_owner
-echo First-time setup: enrolling the Owner face now.
+echo Removing previous face profiles as requested...
+if exist "%LOCALAPPDATA%\JARVIS\face_auth\face_samples.npz" del /f /q "%LOCALAPPDATA%\JARVIS\face_auth\face_samples.npz"
+if exist "%LOCALAPPDATA%\JARVIS\face_auth\users.json" del /f /q "%LOCALAPPDATA%\JARVIS\face_auth\users.json"
+if exist "%LOCALAPPDATA%\JARVIS\face_auth\face_samples.npz" goto face_fail
+if exist "%LOCALAPPDATA%\JARVIS\face_auth\users.json" goto face_fail
+echo Previous face data cleared.
+echo Starting a fresh Owner face enrollment scan now.
 .venv\Scripts\python.exe src\main.py --enroll-face Owner
-if errorlevel 1 goto face_fail
-goto face_success
-
-:authenticate_owner
-echo Existing face profile found. Please verify the Owner face to continue.
-.venv\Scripts\python.exe src\face_auth.py
 if errorlevel 1 goto face_fail
 goto face_success
 
