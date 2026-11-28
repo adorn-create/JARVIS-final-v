@@ -151,9 +151,11 @@ class Controller:
     def _android_watch_loop(self):
         previous = {}
         adb_warning_shown = False
-        while not self._android_watch_stop.wait(5):
-            if self._shutting_down:
+        first_scan = True
+        while not self._shutting_down:
+            if not first_scan and self._android_watch_stop.wait(5):
                 break
+            first_scan = False
             try:
                 from android_bridge import list_android_devices
                 result = list_android_devices()
@@ -168,7 +170,7 @@ class Controller:
                     prior = previous.get(serial, {}).get("state")
                     if prior == state:
                         continue
-                    model = item.get("model") or item.get("device") or "Android device"
+                    model = item.get("alias") or item.get("model") or item.get("device") or "Android device"
                     if state == "device":
                         message = (
                             f"{model} connected and authorized via ADB. "
