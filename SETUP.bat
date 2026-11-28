@@ -56,6 +56,17 @@ echo Installing hand-gesture recognition support...
 if errorlevel 1 echo WARNING: Gesture dependencies failed. Check the error above.
 
 echo.
+echo Checking Android Platform-Tools (ADB) support...
+where adb >nul 2>&1
+if errorlevel 1 (
+  echo ADB not found. Android multi-device control will remain unavailable until Platform-Tools is installed.
+  echo Download official Platform-Tools: https://developer.android.com/tools/releases/platform-tools
+  echo Add its folder to PATH or set JARVIS_ADB_PATH in .env.
+) else (
+  adb version
+)
+
+echo.
 where ollama >nul 2>&1
 if errorlevel 1 (
   echo Ollama was not found. Install it from https://ollama.com/download.
