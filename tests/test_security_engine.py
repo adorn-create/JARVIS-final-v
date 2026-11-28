@@ -1,4 +1,8 @@
 import unittest
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from security_engine import _private_ipv4, normalize_ports, run_safe_lab_demo
 
