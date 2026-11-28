@@ -6,6 +6,7 @@ or executes arbitrary shell commands.
 """
 import concurrent.futures
 import ipaddress
+import json
 import logging
 import os
 import re
@@ -14,6 +15,32 @@ import subprocess
 from pathlib import Path
 
 LOG = logging.getLogger("jarvis.android")
+
+def _device_alias_path():
+    """Return a per-user local file for friendly device labels (never credentials)."""
+    base = os.environ.get("LOCALAPPDATA") or str(Path.home() / ".local" / "share")
+    folder = Path(base) / "JARVIS"
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder / "android_devices.json"
+
+
+def _load_device_aliases():
+    path = _device_alias_path()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except FileNotFoundError:
+        return {}
+    except (OSError, ValueError):
+        LOG.warning("Android device alias file could not be read; using empty aliases")
+        return {}
+
+
+def _save_device_aliases(aliases):
+    path = _device_alias_path()
+    temp = path.with_suffix(".json.tmp")
+    temp.write_text(json.dumps(aliases, ensure_ascii=False, indent=2), encoding="utf-8")
+    os.replace(temp, path)
 
 APP_PACKAGES = {
     "youtube": "com.google.android.youtube",
@@ -77,6 +104,9 @@ def list_android_devices():
                 if key in {"model", "product", "device", "transport_id"}:
                     details[key] = value
         devices.append({"serial": serial, "state": state, **details})
+    aliases = _load_device_aliases()
+    for item in devices:
+        item["alias"] = aliases.get(item["serial"], "")
     return {
         "ok": True,
         "devices": devices,
@@ -84,6 +114,24 @@ def list_android_devices():
         "note": "Only devices in the 'device' state are controllable. Approve this PC's debugging key on each phone.",
     }
 
+
+
+def set_android_device_alias(serial, alias):
+    """Save a friendly label for a device currently visible to ADB."""
+    serial = str(serial).strip()
+    alias = str(alias).strip()
+    if not SERIAL_RE.fullmatch(serial):
+        raise ValueError("Choose a valid serial from the current Android device list.")
+    if len(alias) < 1 or len(alias) > 32 or any(ord(ch) < 32 for ch in alias):
+        raise ValueError("Device name must contain 1 to 32 printable characters.")
+    devices = list_android_devices()["devices"]
+    if serial not in {item["serial"] for item in devices}:
+        raise ValueError("That device is not currently visible to ADB. Connect it first, then name it.")
+    aliases = _load_device_aliases()
+    aliases[serial] = alias
+    _save_device_aliases(aliases)
+    return {"ok": True, "serial": serial, "alias": alias,
+            "storage": "Local per-user JARVIS settings; no PINs, passwords, or pairing codes are stored."}
 
 def _validated_targets(serials):
     listed = list_android_devices()["devices"]
