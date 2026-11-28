@@ -37,6 +37,8 @@ This file distinguishes code present in the repository from capabilities that ha
 
 ## Resource target
 
+- `src/resource_benchmark.py` passively samples JARVIS and Ollama RSS separately while the owner exercises the app. It reports peaks and per-sample values but does not itself prove the target is met.
+
 The 2 GB objective applies to JARVIS application overhead excluding the separately loaded LLM. It is a measurement target, not a current verified result. Optional Whisper, MediaPipe, OpenCV, camera capture, and the LLM can materially increase peak memory. Keep optional modules lazy-loaded and measure idle, voice, face, gestures, vision, and chat separately.
 
 ## Verification commands
