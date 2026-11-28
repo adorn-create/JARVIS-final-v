@@ -261,6 +261,10 @@ def _public_feed_url(url):
 
 def fetch_public_safety_alerts(max_items=10):
     """Fetch configured public RSS/Atom bulletins; no radio interception."""
+    try:
+        max_items = max(1, min(int(max_items), 20))
+    except (TypeError, ValueError):
+        max_items = 10
     import requests
     raw = os.getenv("JARVIS_PUBLIC_ALERT_FEEDS", "").strip()
     if not raw:
