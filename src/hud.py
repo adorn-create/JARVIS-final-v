@@ -125,6 +125,7 @@ class HUD:
             ("ev", "E.V. SENSOR INTELLIGENCE", "ON DEMAND"),
             ("friday", "F.R.I.D.A.Y. ANALYSIS", "ON DEMAND"),
             ("morpheus", "MORPHEUS DEFENSE", "READY"),
+            ("ultron", "ULTRON STRATEGIC CORE", "ON DEMAND"),
         ):
             row = tk.Frame(left, bg=PANEL)
             row.pack(fill="x", pady=5)
@@ -397,6 +398,7 @@ class HUD:
             "E.V.": "ev",
             "F.R.I.D.A.Y.": "friday",
             "MORPHEUS": "morpheus",
+            "ULTRON": "ultron",
         }
         key = keys.get(str(module).upper() if module != "E.V." else "E.V.")
         if key:
