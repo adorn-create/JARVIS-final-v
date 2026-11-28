@@ -147,3 +147,22 @@ Gesture recognition dependencies can be installed with `pip install -r requireme
 Face unlock is an optional local convenience lock, not strong anti-spoof authentication. It uses OpenCV LBPH and can be fooled by photographs/video; do not use it as the only protection for sensitive data.
 
 Install the face dependencies with `pip install -r requirements-face.txt`. Enroll the owner first using `python src/main.py --enroll-face` (camera enrollment window; press Q to cancel). After owner enrollment, every startup requires a recognized face. The owner can add a user with `python src/main.py --enroll-face Alice`; owner authentication is required before capture. List profiles with `python src/main.py --list-faces`; remove a non-owner profile with `python src/main.py --remove-face Alice` (owner authentication required). Profiles and face samples are stored locally under `%LOCALAPPDATA%\JARVIS\face_auth`.
+
+## Windows-native defensive security engine
+
+JARVIS includes an optional, lightweight security assessment module in src/security_engine.py. It uses the Python standard library plus the existing project dependencies; it does not load another AI model.
+
+Available JARVIS commands:
+- **Windows security posture:** read-only Microsoft Defender and Windows Firewall status via PowerShell.
+- **Private-host service check:** a TCP connect-only check for one literal private, loopback, or link-local IPv4 address. Hostnames, CIDR ranges, public IPs, and arbitrary ports are rejected. Only the built-in conservative port allowlist is accepted, with a maximum of 16 ports per run.
+- **Local web-header check:** inspect common security headers on a localhost/private-IP lab endpoint using an HTTP HEAD request only.
+- **CVE intelligence:** query the public NIST NVD API by keyword. A CVE match is an investigation lead, not proof that a particular machine is vulnerable.
+- **Safe lab demonstration:** an in-memory path-traversal validation lesson. It does not touch the network or read/write files.
+
+Network checks and lab demonstrations require the JARVIS per-action approval prompt. The private-host scanner sends no exploit payloads, does not attempt authentication, does not brute-force, and does not execute code on the target. Controlled exploit demonstrations in this release are deliberately limited to harmless local simulations; no real exploit runner is included. Use an isolated VM snapshot for any future hands-on exploit research, and keep it disconnected from production networks.
+
+Run the unit tests with:
+
+```powershell
+.venv\Scripts\python.exe -m unittest discover -s tests -v
+```
