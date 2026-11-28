@@ -184,30 +184,37 @@ def check_local_web_headers(url: str) -> dict:
 
 
 def run_safe_lab_demo(name: str) -> dict:
-    """Run an in-memory, non-exploitative validation lesson; touches no network/files."""
+    """Demonstrate path traversal in memory, then show the fixed containment check."""
+    import posixpath
+
     if name != "path_traversal_guard":
         raise ValueError("Available lab demo: path_traversal_guard.")
+    root = "/jarvis-lab/safe-data"
     samples = ("report.txt", "../outside.txt", "images/../../outside.txt", "/etc/passwd")
     checks = []
     for sample in samples:
+        naive_result = posixpath.normpath(posixpath.join(root, sample.replace("\\", "/")))
+        naive_escaped = not (
+            naive_result == root or naive_result.startswith(root.rstrip("/") + "/")
+        )
         path = PurePosixPath(sample.replace("\\", "/"))
         blocked = path.is_absolute() or ".." in path.parts
         checks.append({
             "input": sample,
-            "unsafe_pattern_detected": blocked,
-            "result": "BLOCK" if blocked else "ALLOW",
+            "vulnerable_demo": "ESCAPES LAB ROOT" if naive_escaped else "STAYS IN LAB ROOT",
+            "fixed_guard": "BLOCK" if blocked else "ALLOW",
         })
     return {
         "ok": True,
         "demo": name,
-        "mode": "in-memory simulation",
+        "mode": "in-memory isolated simulation",
+        "lab_root": root,
         "targets_touched": 0,
         "files_written": 0,
         "network_connections": 0,
         "checks": checks,
-        "lesson": "Resolve user paths beneath a fixed trusted root and reject traversal outside it.",
+        "lesson": "The vulnerable join can escape the trusted directory; the fixed guard rejects absolute paths and parent-directory traversal before access.",
     }
-
 
 def lookup_cves(keyword: str, limit: int = 5) -> dict:
     """Query public NVD CVE metadata by keyword; returns identifiers and severity only."""
