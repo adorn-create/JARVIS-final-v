@@ -27,7 +27,8 @@ class SecurityEngineTests(unittest.TestCase):
         self.assertEqual(result["targets_touched"], 0)
         self.assertEqual(result["files_written"], 0)
         self.assertEqual(result["network_connections"], 0)
-        self.assertEqual(result["checks"][1]["result"], "BLOCK")
+        self.assertEqual(result["checks"][1]["fixed_guard"], "BLOCK")
+        self.assertEqual(result["checks"][1]["vulnerable_demo"], "ESCAPES LAB ROOT")
 
 
 if __name__ == "__main__":
