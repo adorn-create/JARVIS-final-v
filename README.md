@@ -254,3 +254,28 @@ MORPHEUS includes an approval-gated private-network inventory tool for devices y
 Example request to JARVIS: “MORPHEUS, inventory my authorized `192.168.1.0/28` lab subnet on the default safe ports.” Use only a subnet assigned to your own lab or explicitly approved by its owner. Never scan public networks or third-party devices without written authorization.
 
 All subsystems remain in one JARVIS process and share the existing local model and approval flow. Face authentication is preserved. The 2 GB goal refers to the assistant's non-model overhead; the total RAM footprint also includes the chosen local LLM and optional voice/vision packages.
+
+
+## Android multi-device bridge (local ADB)
+
+JARVIS can list Android devices connected over USB or already paired through Android Wireless Debugging, wake selected displays, and launch allowlisted apps on multiple phones in parallel.
+
+### Setup
+1. Install the official [Android SDK Platform-Tools](https://developer.android.com/tools/releases/platform-tools).
+2. Add the extracted Platform-Tools folder to Windows PATH, or set `JARVIS_ADB_PATH` in `.env` to the full path of `adb.exe`.
+3. On each phone you own or are authorized to administer, enable Developer Options and USB debugging. Connect by USB and approve the computer's RSA debugging prompt on the phone.
+4. For cable-free use, open **Developer options → Wireless debugging**. Use **Pair device with pairing code** and provide its private LAN IP, pairing port, and temporary six-digit code to JARVIS. The code is used once and is not saved.
+
+### Example commands
+- “List my connected Android devices.”
+- “Open YouTube on all selected phones.”
+- “Wake the displays on these two phones.”
+
+JARVIS first lists ADB devices and uses their exact serials for later actions. App launches are limited to YouTube, Chrome, Maps, WhatsApp, Spotify, Gmail, Settings, Camera, and Photos. Multi-device launches run concurrently and report per-device results.
+
+### Safety and privacy
+- Only devices in ADB's `device` state can receive commands; unauthorized and offline devices are reported but not controlled.
+- Every wake, app launch, and wireless pairing requires a separate JARVIS approval.
+- Wake means display wake only. JARVIS does **not** dismiss the Android lock screen, enter PINs/passwords, bypass authentication, extract phone data, or run arbitrary shell commands.
+- Pairing codes are one-time inputs and are not written to JARVIS logs or configuration.
+- Revoke debugging authorizations in Android Developer Options when no longer needed.
