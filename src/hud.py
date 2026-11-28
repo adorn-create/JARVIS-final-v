@@ -122,6 +122,9 @@ class HUD:
             ("gesture", "GESTURE INPUT", "OFF"),
             ("memory", "LOCAL MEMORY", "READY"),
             ("defense", "SYSTEM SECURITY", "MONITORING"),
+            ("ev", "E.V. SENSOR INTELLIGENCE", "ON DEMAND"),
+            ("friday", "F.R.I.D.A.Y. ANALYSIS", "ON DEMAND"),
+            ("morpheus", "MORPHEUS DEFENSE", "READY"),
         ):
             row = tk.Frame(left, bg=PANEL)
             row.pack(fill="x", pady=5)
@@ -386,6 +389,19 @@ class HUD:
             dot, label = self._subsystem_labels[key]
             label.configure(text=value, fg=AMBER if value not in ("OFF", "READY") else MUTED)
             dot.configure(fg=GREEN if value in ("READY", "MONITORING") else CYAN_DIM)
+
+    def set_module_status(self, module, value):
+        """Update one subsystem indicator from the central request router."""
+        keys = {
+            "JARVIS": "core",
+            "E.V.": "ev",
+            "F.R.I.D.A.Y.": "friday",
+            "MORPHEUS": "morpheus",
+        }
+        key = keys.get(str(module).upper() if module != "E.V." else "E.V.")
+        if key:
+            state = str(value).upper()[:28]
+            self._set_subsystem(key, state)
 
     def confirm_action(self, description):
         if threading.current_thread() is self._tk_thread:
