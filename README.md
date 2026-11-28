@@ -172,3 +172,21 @@ Run the unit tests with:
 JARVIS can inspect one authorized localhost or private/loopback/link-local IPv4 HTTPS lab endpoint. It performs a TLS handshake only and reports certificate trust/verification, expiry, issuer, subject, subject alternative names (when available), SHA-256 certificate fingerprint, negotiated TLS version, and cipher. If certificate verification fails, JARVIS records the failure and may make a second unverified handshake only to collect diagnostic handshake metadata. No HTTP request, authentication, or exploit payload is sent. Public IPs, hostnames other than localhost, and CIDR ranges are rejected. The tool requires per-action approval.
 
 Example voice/text request: `Inspect HTTPS/TLS on https://192.168.1.20:443`.
+
+
+## E.V.-inspired mode (lightweight and on demand)
+
+JARVIS includes an E.V.-inspired set of optional tools. The normal assistant conversation remains the AI assistant layer; no second language model is loaded.
+
+- **Targeting-style camera tracking:** short, user-approved OpenCV motion tracking. It reports moving-region bounding boxes, direction, and pixel displacement. It does not identify people, save frames, or control weapons.
+- **Body/biometric monitoring:** reads fresh values from an optional local wearable bridge at data/ev_biometrics.json. Expected fields: timezone-aware ISO timestamp, optional heart_rate_bpm, spo2_percent, temperature_c, and optional source. Missing/stale readings are reported as unavailable; JARVIS does not invent values. This is informational, not medical advice.
+- **Enhanced-sense analysis:** user-approved two-second microphone-level sample (quiet/moderate/loud/transient). Audio is processed in memory and not saved; this is not speech recognition or semantic sound identification.
+- **Public safety alerts:** reads up to five user-configured HTTPS RSS/Atom feeds from JARVIS_PUBLIC_ALERT_FEEDS, separated by semicolons. Configure only official public feeds. It does not intercept radio, private dispatch, or encrypted channels. Redirects are disabled and feed hosts must resolve to public IP addresses.
+- **Facial recognition:** preserves the existing local face-unlock and owner/user enrollment flow. The E.V. profile tool lists only locally enrolled profiles; it does not identify unknown or public people.
+- **Data analysis:** aggregate summaries for one CSV/JSON/JSONL/LOG/TXT file under the project's data/ or logs/ folder. Files are limited to 2 MB; arbitrary paths and full-content dumps are not supported.
+
+All camera, microphone, health-data, network-feed, face-profile, and local-file reads require an approval prompt. These modules are imported only when requested; no additional AI model is loaded and no continuous camera or microphone monitor is started. The wearable bridge and public alert feeds are optional integrations and return a clear unavailable/configuration message until configured.
+
+Example wearable bridge JSON: {"timestamp":"2026-11-28T10:30:00+05:30","source":"my wearable bridge","heart_rate_bpm":72,"spo2_percent":98,"temperature_c":36.7}.
+
+Set JARVIS_PUBLIC_ALERT_FEEDS in .env to semicolon-separated official HTTPS RSS/Atom feed URLs to enable public bulletins.
