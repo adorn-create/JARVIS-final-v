@@ -640,6 +640,78 @@ TOOL_DEFINITIONS = [
         },
     },
 
+
+    {
+        "type": "function",
+        "function": {
+            "name": "friday_track_target_motion",
+            "description": "Analyze 2D position samples for one anonymous moving object, estimate direction/speed, and extrapolate its near-term position. No identity recognition, weapon targeting, or action control.",
+            "parameters": {"type": "object", "properties": {
+                "samples": {"type": "array", "minItems": 2, "maxItems": 60, "items": {"type": "object", "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "t": {"type": "number"}}, "required": ["x", "y", "t"], "additionalProperties": False}},
+                "horizon_seconds": {"type": "number", "minimum": 0.1, "maximum": 3}
+            }, "required": ["samples"], "additionalProperties": False}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "friday_assess_safety_signals",
+            "description": "Score user-reported environmental hazards such as smoke, fire, gas smell, approaching vehicle, injury, loud impact, or power outage. Does not score people or automatically detect threats.",
+            "parameters": {"type": "object", "properties": {"signals": {"type": "array", "items": {"type": "string", "enum": ["smoke", "fire", "gas_smell", "vehicle_approaching", "fall_or_injury", "loud_impact", "power_outage"]}, "maxItems": 10}}, "required": ["signals"], "additionalProperties": False}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "friday_system_diagnostics",
+            "description": "Run read-only CPU, RAM, disk, battery and available temperature-sensor diagnostics on this PC.",
+            "parameters": {"type": "object", "properties": {}, "additionalProperties": False}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "friday_power_advice",
+            "description": "Read battery state and suggest energy-saving actions. Never changes Windows power settings.",
+            "parameters": {"type": "object", "properties": {}, "additionalProperties": False}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "friday_navigation_guidance",
+            "description": "Convert supplied compass heading and target bearing into a simple turn cue. Optional distance/speed gives a rough ETA. No GPS, autopilot, vehicle control, or aviation navigation.",
+            "parameters": {"type": "object", "properties": {
+                "current_heading_deg": {"type": "number"}, "target_bearing_deg": {"type": "number"},
+                "distance_m": {"type": "number"}, "speed_mps": {"type": "number"}
+            }, "required": ["current_heading_deg", "target_bearing_deg"], "additionalProperties": False}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "friday_intelligence_search",
+            "description": "Search public web snippets for an intelligence brief. Requires user approval before external network access; results are untrusted and must be verified.",
+            "parameters": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"], "additionalProperties": False}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "friday_emergency_guidance",
+            "description": "Provide conservative first-response reminders for fire, medical emergency, road accident, intrusion, severe weather, or power outage. Does not contact emergency services.",
+            "parameters": {"type": "object", "properties": {"scenario": {"type": "string", "enum": ["fire", "medical", "road_accident", "intrusion", "severe_weather", "power_outage"]}}, "required": ["scenario"], "additionalProperties": False}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "friday_local_alert",
+            "description": "Show a local F.R.I.D.A.Y. alert in the JARVIS HUD. This does not send email, SMS, calls, or external messages.",
+            "parameters": {"type": "object", "properties": {"title": {"type": "string"}, "message": {"type": "string"}}, "required": ["title", "message"], "additionalProperties": False}
+        }
+    },
+
 ]
 
 
@@ -779,6 +851,43 @@ def execute(name, args, confirm=None, progress=None):
         if not _confirm_action(confirm, "Analyze this project-local data file and return aggregate statistics only?\n\n" + relative_path):
             return {"ok": False, "error": "User did not approve local data analysis."}
         return analyze_project_file(relative_path)
+
+
+    if name == "friday_track_target_motion":
+        from friday_features import analyze_movement
+        return analyze_movement(args.get("samples", []), args.get("horizon_seconds", 1.0))
+    if name == "friday_assess_safety_signals":
+        from friday_features import assess_safety_signals
+        return assess_safety_signals(args.get("signals", []))
+    if name == "friday_system_diagnostics":
+        from friday_features import system_diagnostics
+        return system_diagnostics()
+    if name == "friday_power_advice":
+        from friday_features import power_advice
+        return power_advice()
+    if name == "friday_navigation_guidance":
+        from friday_features import navigation_guidance
+        return navigation_guidance(
+            args.get("current_heading_deg"), args.get("target_bearing_deg"),
+            args.get("distance_m"), args.get("speed_mps")
+        )
+    if name == "friday_intelligence_search":
+        query = str(args.get("query", "")).strip()[:300]
+        if not _confirm_action(confirm, "Search public websites for this F.R.I.D.A.Y. intelligence brief?\n\n" + query):
+            return {"ok": False, "error": "User did not approve external intelligence search."}
+        return web_search(query)
+    if name == "friday_emergency_guidance":
+        from friday_features import emergency_guidance
+        return emergency_guidance(args.get("scenario", ""))
+    if name == "friday_local_alert":
+        title = str(args.get("title", "")).strip()[:100]
+        message = str(args.get("message", "")).strip()[:500]
+        if not title or not message:
+            return {"ok": False, "error": "A non-empty alert title and message are required."}
+        if progress:
+            progress("ALERT • " + title + ": " + message[:90])
+        return {"ok": True, "displayed_in_local_hud": bool(progress), "title": title, "message": message,
+                "note": "Local JARVIS HUD only; no external communication was sent."}
 
     if name == "report_progress":
         status = str(args.get("status", "")).strip()[:120]
