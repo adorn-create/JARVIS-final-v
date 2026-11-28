@@ -63,7 +63,8 @@ def collect_report() -> dict:
         "memory": {"process_rss_mb": None},
     }
 
-    local_data = Path(os.getenv("LOCALAPPDATA", str(Path.home()))) / "JARVIS" / "face_auth"
+    user_data_root = os.getenv("LOCALAPPDATA") or os.getenv("USERPROFILE") or os.getenv("HOME") or str(ROOT)
+    local_data = Path(user_data_root) / "JARVIS" / "face_auth"
     report["face_auth"]["profiles_file_present"] = (local_data / "users.json").is_file()
     report["face_auth"]["samples_file_present"] = (local_data / "face_samples.npz").is_file()
 
