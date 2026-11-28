@@ -166,3 +166,24 @@ def pair_wireless_android_device(address, pairing_code):
     output = _run(["pair", address, code], timeout=30)
     return {"ok": "successfully paired" in output.lower(), "output": output[:300],
             "note": "Pairing establishes ADB trust; use the phone's separate connect endpoint if Android reports one."}
+
+
+def connect_wireless_android_device(address):
+    """Connect to the separate ADB endpoint shown on Android Wireless Debugging."""
+    address = str(address).strip()
+    if not HOSTPORT_RE.fullmatch(address):
+        raise ValueError("Address must be the Android Wireless Debugging connect endpoint in host:port form.")
+    host = address.rsplit(":", 1)[0].strip("[]")
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError as exc:
+        raise ValueError("Use the phone's private LAN IP address shown in Wireless Debugging.") from exc
+    if not ip.is_private or ip.is_loopback or ip.is_unspecified:
+        raise ValueError("Wireless ADB connection is limited to a private LAN address.")
+    port = int(address.rsplit(":", 1)[1])
+    if not 1 <= port <= 65535:
+        raise ValueError("Connect port must be between 1 and 65535.")
+    output = _run(["connect", address], timeout=20)
+    ok = "connected to" in output.lower() or "already connected" in output.lower()
+    return {"ok": ok, "output": output[:300],
+            "note": "The device must still be authorized in Android Wireless Debugging. Use android_list_devices to verify its state."}
