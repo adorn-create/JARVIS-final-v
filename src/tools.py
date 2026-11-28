@@ -596,7 +596,7 @@ TOOL_DEFINITIONS = [
         "function": {
             "name": "ev_track_camera_motion",
             "description": "On-demand, short camera motion tracking using local OpenCV. Reports moving-region tracks and direction only; it does not identify people, save frames, or control anything. Requires explicit camera approval.",
-            "parameters": {"type": "object", "properties": {"duration_seconds": {"type": "integer", "minimum": 2, "maximum": 8}}, "additionalProperties": false},
+            "parameters": {"type": "object", "properties": {"duration_seconds": {"type": "integer", "minimum": 2, "maximum": 8}}, "additionalProperties": False},
         },
     },
     {
@@ -604,7 +604,7 @@ TOOL_DEFINITIONS = [
         "function": {
             "name": "ev_read_biometrics",
             "description": "Read fresh readings from the user's local wearable bridge file (heart rate, SpO2, temperature when present). No sensor values are fabricated; informational only. Requires approval.",
-            "parameters": {"type": "object", "properties": {}, "additionalProperties": false},
+            "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
         },
     },
     {
@@ -612,7 +612,7 @@ TOOL_DEFINITIONS = [
         "function": {
             "name": "ev_analyze_senses",
             "description": "Capture a very short microphone sample and classify acoustic level/transients locally. Raw audio is not saved and this is not speech recognition. Requires microphone approval.",
-            "parameters": {"type": "object", "properties": {}, "additionalProperties": false},
+            "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
         },
     },
     {
@@ -620,7 +620,7 @@ TOOL_DEFINITIONS = [
         "function": {
             "name": "ev_public_safety_alerts",
             "description": "Read configured official public HTTPS RSS/Atom emergency bulletins. No radio interception, private dispatch feeds, or non-public channels. Requires approval before network access.",
-            "parameters": {"type": "object", "properties": {"max_items": {"type": "integer", "minimum": 1, "maximum": 20}}, "additionalProperties": false},
+            "parameters": {"type": "object", "properties": {"max_items": {"type": "integer", "minimum": 1, "maximum": 20}}, "additionalProperties": False},
         },
     },
     {
@@ -628,7 +628,7 @@ TOOL_DEFINITIONS = [
         "function": {
             "name": "ev_face_profiles",
             "description": "List locally enrolled JARVIS face-unlock profiles. Does not identify unknown or public people. Requires approval to read the local profile roster.",
-            "parameters": {"type": "object", "properties": {}, "additionalProperties": false},
+            "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
         },
     },
     {
@@ -636,7 +636,7 @@ TOOL_DEFINITIONS = [
         "function": {
             "name": "ev_analyze_project_data",
             "description": "Produce aggregate summaries of one project-relative CSV/JSON/JSONL/LOG/TXT file under data/ or logs/ (max 2 MB). Does not read arbitrary paths or return full file contents. Requires approval.",
-            "parameters": {"type": "object", "properties": {"relative_path": {"type": "string"}}, "required": ["relative_path"], "additionalProperties": false},
+            "parameters": {"type": "object", "properties": {"relative_path": {"type": "string"}}, "required": ["relative_path"], "additionalProperties": False},
         },
     },
 
