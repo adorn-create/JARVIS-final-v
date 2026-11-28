@@ -123,6 +123,65 @@ def triage_file(file_path: str) -> dict:
     }
 
 
+def scan_with_windows_defender(file_path: str, timeout: int = 300) -> dict:
+    """Run a user-approved Microsoft Defender custom scan on one local file.
+
+    Defender's configured remediation policy may quarantine or remove a detected
+    threat. This function never disables Defender or changes its policy.
+    """
+    import subprocess
+
+    if os.name != "nt":
+        return {"ok": False, "error": "Microsoft Defender custom file scans require Windows."}
+    raw = str(file_path or "").strip()
+    if not raw or len(raw) > 2048:
+        raise ValueError("Provide a local file path of 1 to 2048 characters.")
+    try:
+        path = Path(raw).expanduser().resolve(strict=True)
+    except (OSError, RuntimeError) as exc:
+        raise ValueError(f"File could not be resolved: {exc}") from exc
+    if not path.is_file():
+        raise ValueError("The selected path is not a regular file.")
+    if path.stat().st_size > MAX_FILE_BYTES:
+        raise ValueError("Defender single-file scan is limited to 512 MB.")
+    script = (
+        "$ErrorActionPreference='Stop'; "
+        "Import-Module Defender -ErrorAction Stop; "
+        "Start-MpScan -ScanType CustomScan -ScanPath $env:JARVIS_DEFENDER_SCAN_PATH; "
+        "'DEFENDER_SCAN_COMMAND_COMPLETED'"
+    )
+    env = os.environ.copy()
+    env["JARVIS_DEFENDER_SCAN_PATH"] = str(path)
+    try:
+        result = subprocess.run(
+            ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
+            capture_output=True, text=True,
+            timeout=max(30, min(int(timeout), 600)),
+            check=False, env=env,
+        )
+    except subprocess.TimeoutExpired:
+        return {
+            "ok": False, "timed_out": True, "path": str(path),
+            "error": "Microsoft Defender scan exceeded the time limit. Check Windows Security Protection History.",
+        }
+    except OSError as exc:
+        return {"ok": False, "error": f"Could not start Microsoft Defender scan: {exc}"}
+    if result.returncode != 0:
+        return {
+            "ok": False, "path": str(path),
+            "error": "Microsoft Defender scan command failed. Check Defender availability and permissions.",
+            "details": result.stderr.strip()[:500],
+        }
+    return {
+        "ok": True, "path": str(path),
+        "engine": "Microsoft Defender",
+        "command_completed": "DEFENDER_SCAN_COMMAND_COMPLETED" in result.stdout,
+        "stdout": result.stdout.strip()[-1200:],
+        "next_step": "Review Windows Security > Virus & threat protection > Protection history for detections and remediation.",
+        "side_effect_notice": "Microsoft Defender's existing policy may quarantine or remove a detected file. JARVIS does not change that policy.",
+    }
+
+
 def process_snapshot(limit: int = 100) -> dict:
     """Summarize running processes using path-based heuristics only."""
     import psutil
