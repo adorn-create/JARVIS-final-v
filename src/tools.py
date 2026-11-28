@@ -304,6 +304,22 @@ TOOL_DEFINITIONS = [
     {
         "type": "function",
         "function": {
+            "name": "security_triage_file",
+            "description": "Perform read-only local triage of one user-selected file: SHA-256, file header, extension indicators, Windows download-zone marker, and Authenticode signature where available. Never executes, uploads, modifies, deletes, or quarantines the file. This is not a malware verdict and requires user approval.",
+            "parameters": {"type": "object", "properties": {"file_path": {"type": "string"}}, "required": ["file_path"], "additionalProperties": False},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "security_process_snapshot",
+            "description": "Read-only snapshot of running processes using conservative path-based indicators for processes launched from common user-writable folders. Reports leads only; does not terminate, suspend, or modify processes. Requires user approval.",
+            "parameters": {"type": "object", "properties": {"limit": {"type": "integer", "minimum": 1, "maximum": 200}}, "additionalProperties": False},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "security_host_audit",
             "description": "Read the local Windows Defender and Windows Firewall status. Read-only; does not change security settings.",
             "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
@@ -917,6 +933,27 @@ def execute(name, args, confirm=None, progress=None):
         if not _confirm_action(confirm, f"Add this training example to JARVIS's local intent model?\\n\\nCategory: {label}\\nPhrase: {phrase}"):
             return {"ok": False, "error": "User did not approve model training."}
         return learn(phrase, label)
+    if name == "security_triage_file":
+        from morpheus_monitor import triage_file
+        file_path = str(args.get("file_path", "")).strip()
+        if not _confirm_action(
+            confirm,
+            "Inspect this selected local file using read-only hashing, metadata and signature checks?\n\n"
+            + file_path
+            + "\nThe file will not be executed, uploaded, modified, deleted, or quarantined."
+        ):
+            return {"ok": False, "error": "User did not approve file triage."}
+        return triage_file(file_path)
+    if name == "security_process_snapshot":
+        from morpheus_monitor import process_snapshot
+        limit = args.get("limit", 100)
+        if not _confirm_action(
+            confirm,
+            "Read a local snapshot of running process paths and report basic heuristic indicators? "
+            "No process will be stopped or modified."
+        ):
+            return {"ok": False, "error": "User did not approve process snapshot."}
+        return process_snapshot(limit=limit)
     if name == "security_host_audit":
         from security_engine import audit_windows_security
         return audit_windows_security()
