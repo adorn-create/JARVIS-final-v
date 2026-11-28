@@ -684,6 +684,18 @@ TOOL_DEFINITIONS = [
     {
         "type": "function",
         "function": {
+            "name": "friday_fuse_environmental_observations",
+            "description": "Combine already-collected, opt-in E.V. camera-motion and microphone-level observations with explicitly user-reported safety signals. Returns cautious corroboration and advisory guidance only; it does not identify people, declare an emergency from sensors, or contact responders.",
+            "parameters": {"type": "object", "properties": {
+                "camera_motion_detected": {"type": "boolean"},
+                "acoustic_classification": {"type": "string", "enum": ["not_sampled", "quiet", "moderate ambient sound", "loud or sustained ambient sound", "strong transient or very loud sound"]},
+                "reported_signals": {"type": "array", "items": {"type": "string", "enum": ["smoke", "fire", "gas_smell", "vehicle_approaching", "fall_or_injury", "loud_impact", "power_outage"]}, "maxItems": 10}
+            }, "additionalProperties": False}
+        }
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "friday_track_target_motion",
             "description": "Analyze 2D position samples for one anonymous moving object, estimate direction/speed, and extrapolate its near-term position. No identity recognition, weapon targeting, or action control.",
             "parameters": {"type": "object", "properties": {
@@ -1068,6 +1080,13 @@ def execute(name, args, confirm=None, progress=None):
         return analyze_project_file(relative_path)
 
 
+    if name == "friday_fuse_environmental_observations":
+        from friday_features import fuse_environmental_observations
+        return fuse_environmental_observations(
+            camera_motion_detected=args.get("camera_motion_detected", False),
+            acoustic_classification=args.get("acoustic_classification", "not_sampled"),
+            reported_signals=args.get("reported_signals", []),
+        )
     if name == "friday_track_target_motion":
         from friday_features import analyze_movement
         return analyze_movement(args.get("samples", []), args.get("horizon_seconds", 1.0))
