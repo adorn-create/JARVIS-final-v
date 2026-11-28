@@ -48,6 +48,16 @@ A lightweight background monitor (`src/awareness.py`) samples CPU, memory, and p
 
 The custom intent model is the first JARVIS-owned AI component. Complex open-ended reasoning and vision still use the existing optional local Ollama models.
 
+### Measure actual RAM use on your PC
+
+Start JARVIS normally, then open a second PowerShell window in the project folder and run:
+
+```powershell
+.venv\\Scripts\\python.exe src\\resource_benchmark.py --duration 60
+```
+
+Repeat while testing idle, voice, face recognition, gestures, screen analysis, and chat. Use `--json` to retain per-sample readings. The report separates JARVIS and Ollama; with the in-process GGUF backend, the model is part of JARVIS RSS. This is a measurement tool, not a 2 GB guarantee.
+
 ## 16 GB RAM, CPU-only JARVIS model profile
 
 The target profile for a Windows PC with about 16 GB system RAM and no dedicated VRAM is **Qwen3-4B, quantized to GGUF Q4_K_M**, running through the in-process `llama-cpp-python` backend. Qwen3-4B is an Apache-2.0 model family; JARVIS-specific behavior will be created by fine-tuning our own adapter/model and packaging the resulting weights separately. The base model is not itself our original model. See [Qwen3-4B on Hugging Face](https://huggingface.co/Qwen/Qwen3-4B).
