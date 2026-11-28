@@ -239,3 +239,18 @@ The ULTRON-inspired layer is integrated as a capability module under JARVIS, not
 Tools: `ultron_capability_report`, `ultron_strategic_plan`, `ultron_review_improvement`, `ultron_simulate_fleet`, and `ultron_resilience_check`.
 
 No self-replication, unauthorized infiltration, weapon control, automatic source rewriting, or unattended physical robotics is included.
+
+
+## MORPHEUS authorized real-device assessment
+
+MORPHEUS includes an approval-gated private-network inventory tool for devices you own or have explicit permission to assess.
+
+- `security_inventory_authorized_subnet` accepts one private IPv4 subnet no larger than `/28` (maximum 14 usable hosts).
+- It checks a conservative allowlist of TCP ports using connection-only probes and reports devices with reachable services.
+- Each run requires the normal JARVIS approval prompt. It does not authenticate, capture service banners, exploit vulnerabilities, change device settings, or attempt persistence.
+- Existing single-host port checks, local web-header checks, TLS certificate inspection, Windows Defender/Firewall posture checks, CVE metadata lookup, and the harmless in-memory lab demo remain available.
+- This is a bounded attack-surface inventory, **not** an exploit framework or a complete penetration test. Follow up findings manually with a dedicated authorized test plan and vendor guidance.
+
+Example request to JARVIS: “MORPHEUS, inventory my authorized `192.168.1.0/28` lab subnet on the default safe ports.” Use only a subnet assigned to your own lab or explicitly approved by its owner. Never scan public networks or third-party devices without written authorization.
+
+All subsystems remain in one JARVIS process and share the existing local model and approval flow. Face authentication is preserved. The 2 GB goal refers to the assistant's non-model overhead; the total RAM footprint also includes the chosen local LLM and optional voice/vision packages.
