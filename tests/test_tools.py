@@ -48,6 +48,36 @@ class FakeWindow:
 
 
 class ToolApprovalTests(unittest.TestCase):
+    def test_file_triage_requires_explicit_approval(self):
+        with patch("morpheus_monitor.triage_file") as triage:
+            result = tools.execute(
+                "security_triage_file",
+                {"file_path": "sample.exe"},
+                confirm=lambda _description: False,
+            )
+        self.assertFalse(result["ok"])
+        triage.assert_not_called()
+
+    def test_approved_file_triage_calls_read_only_analyzer(self):
+        with patch("morpheus_monitor.triage_file", return_value={"ok": True, "sha256": "abc"}) as triage:
+            result = tools.execute(
+                "security_triage_file",
+                {"file_path": "sample.exe"},
+                confirm=lambda _description: True,
+            )
+        self.assertTrue(result["ok"])
+        triage.assert_called_once_with("sample.exe")
+
+    def test_process_snapshot_requires_explicit_approval(self):
+        with patch("morpheus_monitor.process_snapshot") as snapshot:
+            result = tools.execute(
+                "security_process_snapshot",
+                {"limit": 10},
+                confirm=lambda _description: False,
+            )
+        self.assertFalse(result["ok"])
+        snapshot.assert_not_called()
+
     def test_denied_click_does_not_activate_control(self):
         button = FakeControl("Button", "Save")
         with patch("tools._resolve_window", return_value=FakeWindow([button])):
