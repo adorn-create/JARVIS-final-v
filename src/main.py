@@ -160,7 +160,7 @@ class Controller:
         elif status.startswith("ROUTED •"):
             selected = [part.strip() for part in status[8:].split("+") if part.strip()]
             self.hud.dispatch(self.hud.set_module_status, "JARVIS", "COORDINATING")
-            for module in ("E.V.", "F.R.I.D.A.Y.", "MORPHEUS"):
+            for module in ("E.V.", "F.R.I.D.A.Y.", "MORPHEUS", "ULTRON"):
                 self.hud.dispatch(self.hud.set_module_status, module,
                                   "SELECTED" if module in selected else "STANDBY")
             self.hud.dispatch(self.hud.set_status, "ROUTED • " + " + ".join(selected))
